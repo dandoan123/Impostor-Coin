@@ -1,0 +1,12 @@
+{
+  "name": "bai-toan-12-dong-xu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Trò chơi cân 12 đồng xu, chạy trên mạng LAN và lưu kết quả vào data/",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

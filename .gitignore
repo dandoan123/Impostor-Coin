@@ -1,0 +1,3 @@
+node_modules/
+# Player results (names, IP addresses) stay on this machine
+data/
