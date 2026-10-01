@@ -1,6 +1,13 @@
 // Server for the 12-coin game. Run: node server.js  (or PORT=8080 node server.js)
 // Players on the same network open http://<this machine's IP>:<port>.
 // Every finished game is appended to data/results.jsonl and data/results.csv.
+//
+// Environment variables (all optional):
+//   PORT          port to listen on (default 3000)
+//   DATA_DIR      where results are stored (default ./data); on a cloud host point it at a persistent disk
+//   ADMIN_TOKEN   enables /admin/results.csv and /admin/results.jsonl?token=...
+//   TRUST_PROXY   set to 1 behind a reverse proxy (Render, Railway, nginx) to log the player's real IP
+//   TIME_ZONE     time zone for the times in results.csv (default Asia/Ho_Chi_Minh)
 const http = require('http');
 const fs = require('fs');
 const os = require('os');
@@ -13,11 +20,28 @@ const ROOT = __dirname;
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, 'data');
 const JSONL = path.join(DATA_DIR, 'results.jsonl');
 const CSV = path.join(DATA_DIR, 'results.csv');
-const STATIC = { '/': ['index.html', 'text/html; charset=utf-8'], '/index.html': ['index.html', 'text/html; charset=utf-8'], '/core.js': ['core.js', 'text/javascript; charset=utf-8'] };
+const STATIC = {
+  '/': ['index.html', 'text/html; charset=utf-8'],
+  '/index.html': ['index.html', 'text/html; charset=utf-8'],
+  '/core.js': ['core.js', 'text/javascript; charset=utf-8'],
+  '/sw.js': ['sw.js', 'text/javascript; charset=utf-8'],
+  '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json; charset=utf-8'],
+  '/icons/icon-192.png': ['icons/icon-192.png', 'image/png'],
+  '/icons/icon-512.png': ['icons/icon-512.png', 'image/png'],
+  '/icons/apple-touch-icon.png': ['icons/apple-touch-icon.png', 'image/png'],
+  '/icons/favicon-32.png': ['icons/favicon-32.png', 'image/png'],
+  '/favicon.ico': ['icons/favicon-32.png', 'image/png']
+};
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+// Each IP may send at most this many game requests per minute.
+const RATE_LIMIT = 90;
+// Times in results.csv are written in this zone (cloud servers usually run on UTC).
+const TIME_ZONE = process.env.TIME_ZONE || 'Asia/Ho_Chi_Minh';
 const EXTRAS = path.join(ROOT, 'extras.js');
 // Players who have lost more than this many games also get the solver/solution tabs (extras.js).
 // The page is never told about this rule.
-const UNLOCK_AFTER_LOSSES = 10;
+const UNLOCK_AFTER_LOSSES = 100;
 const GAME_TTL_MS = 30 * 60 * 1000;
 const MAX_GAMES = 5000;
 
@@ -44,7 +68,7 @@ function saveResult(rec) {
   results.push(rec);
   fs.appendFileSync(JSONL, JSON.stringify(rec) + '\n', 'utf8');
   const row = [
-    new Date(rec.at).toLocaleString('vi-VN'), rec.name, rec.mode === 'adv' ? 'Khó' : 'Ngẫu nhiên',
+    new Date(rec.at).toLocaleString('vi-VN', { timeZone: TIME_ZONE }), rec.name, rec.mode === 'adv' ? 'Khó' : 'Ngẫu nhiên',
     { win: 'Thắng', lose: 'Thua', abandoned: 'Bỏ dở' }[rec.outcome], hypText(rec.guess), hypText(rec.fake),
     rec.weighs.length, rec.weighs.map(w => `${w.L.join(' ')} | ${w.R.join(' ')} → ${SYM[w.o]}`).join('; '),
     Math.round(rec.durationMs / 1000), rec.ip
@@ -56,7 +80,7 @@ function saveResult(rec) {
   } catch (e) {
     console.warn(`Không ghi được ${CSV} (có thể đang mở trong Excel). Kết quả vẫn được lưu trong ${JSONL}.`);
   }
-  console.log(`[${new Date(rec.at).toLocaleTimeString('vi-VN')}] ${rec.name}: ${rec.outcome} (${rec.mode}, ${rec.weighs.length} lần cân)`);
+  console.log(`[${new Date(rec.at).toLocaleTimeString('vi-VN', { timeZone: TIME_ZONE })}] ${rec.name}: ${rec.outcome} (${rec.mode}, ${rec.weighs.length} lần cân)`);
 }
 
 /* ---------- games (kept in memory while being played) ---------- */
@@ -161,16 +185,46 @@ const api = {
 };
 
 /* ---------- http ---------- */
-function send(res, status, body, type = 'application/json; charset=utf-8') {
-  res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+function send(res, status, body, type = 'application/json; charset=utf-8', extra = {}) {
+  res.writeHead(status, {
+    'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin', ...extra
+  });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
+}
+function clientIp(req) {
+  const fwd = TRUST_PROXY && req.headers['x-forwarded-for'];
+  const ip = fwd ? String(fwd).split(',')[0].trim() : (req.socket.remoteAddress || '');
+  return ip.replace(/^::ffff:/, '');
+}
+const hits = new Map();
+function limited(ip) {
+  const now = Date.now(), h = hits.get(ip);
+  if (!h || now - h.start > 60 * 1000) { hits.set(ip, { start: now, n: 1 }); return false; }
+  return ++h.n > RATE_LIMIT;
+}
+setInterval(() => { const now = Date.now(); for (const [ip, h] of hits) if (now - h.start > 60 * 1000) hits.delete(ip); }, 60 * 1000).unref();
+function tokenOk(given) {
+  if (!ADMIN_TOKEN || typeof given !== 'string') return false;
+  const a = crypto.createHash('sha256').update(given).digest(), b = crypto.createHash('sha256').update(ADMIN_TOKEN).digest();
+  return crypto.timingSafeEqual(a, b);
 }
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
-  const ip = (req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+  const ip = clientIp(req);
   const st = req.method === 'GET' && STATIC[url.pathname];
   if (st) return fs.readFile(path.join(ROOT, st[0]), (err, buf) => err ? send(res, 500, 'Lỗi đọc file', 'text/plain; charset=utf-8') : send(res, 200, buf, st[1]));
+  if (req.method === 'GET' && url.pathname === '/healthz') return send(res, 200, 'ok', 'text/plain; charset=utf-8');
+  const adminFile = req.method === 'GET' && { '/admin/results.csv': [CSV, 'text/csv; charset=utf-8'], '/admin/results.jsonl': [JSONL, 'application/x-ndjson; charset=utf-8'] }[url.pathname];
+  if (adminFile) {
+    const auth = req.headers.authorization || '';
+    if (!tokenOk(url.searchParams.get('token') || auth.replace(/^Bearer\s+/i, ''))) return send(res, 403, { error: 'Sai hoặc thiếu mã quản trị.' });
+    if (!fs.existsSync(adminFile[0])) return send(res, 404, { error: 'Chưa có kết quả nào.' });
+    return fs.readFile(adminFile[0], (err, buf) => err ? send(res, 500, { error: 'Lỗi đọc file' })
+      : send(res, 200, buf, adminFile[1], { 'Content-Disposition': `attachment; filename="${path.basename(adminFile[0])}"` }));
+  }
+  if (url.pathname.startsWith('/api/') && limited(ip)) return send(res, 429, { error: 'Bạn thao tác quá nhanh, thử lại sau ít giây.' });
   if (req.method === 'GET' && url.pathname === '/api/extras') {
     const key = cleanName(url.searchParams.get('name')).toLocaleLowerCase('vi');
     const losses = key ? results.filter(r => r.outcome === 'lose' && r.name.toLocaleLowerCase('vi') === key).length : 0;
@@ -198,5 +252,6 @@ server.listen(PORT, '0.0.0.0', () => {
     for (const a of list || []) if (a.family === 'IPv4' && !a.internal) console.log(`  Người cùng mạng: http://${a.address}:${PORT}`);
   }
   console.log(`  Kết quả lưu tại: ${CSV}`);
+  console.log(ADMIN_TOKEN ? `  Tải kết quả:     /admin/results.csv?token=<ADMIN_TOKEN>` : `  (Đặt ADMIN_TOKEN để bật trang tải kết quả /admin/results.csv)`);
   console.log(`  Đã có ${results.length} ván trong lịch sử. Nhấn Ctrl+C để tắt.\n`);
 });

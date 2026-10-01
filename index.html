@@ -2,8 +2,17 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bài toán 12 đồng xu</title>
+<meta name="description" content="Tìm đồng xu giả trong 12 đồng chỉ với 3 lần cân.">
+<meta name="theme-color" content="#17242B">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="12 đồng xu">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,700;1,7..72,500&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -53,7 +62,7 @@
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
 
 /* name gate */
-.gate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: var(--bg); overflow-y: auto; }
+.gate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--bg); overflow-y: auto; }
 .gate-card { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 26px 24px; }
 .gate-card h2 { margin: 0 0 4px; font-family: var(--f-display); font-size: 30px; line-height: 1.1; }
 .gate-card .eyebrow { margin: 0; }
@@ -70,8 +79,9 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(
 tr.me td { background: var(--brass-soft); }
 td.empty { color: var(--muted); font-style: italic; white-space: normal; }
 .win { color: var(--ok); font-weight: 600; } .lose { color: var(--heavy); font-weight: 600; } .muted { color: var(--muted); }
-.wrap { max-width: 1140px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 72px; }
-@media (max-width: 480px) { .wrap { padding-inline: 16px; } }
+.wrap { max-width: 1140px; margin: 0 auto; padding-inline: max(20px, env(safe-area-inset-left, 0px)); padding-block: calc(32px + env(safe-area-inset-top, 0px)) calc(72px + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 480px) { .wrap { padding-inline: max(16px, env(safe-area-inset-left, 0px)); } }
+.install-hint { margin: -12px 0 18px; padding: 10px 14px; border-radius: 10px; background: var(--brass-soft); font-size: 14px; }
 
 /* hero */
 .hero { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 32px; align-items: end; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
@@ -264,8 +274,9 @@ td.okc { color: var(--ok); font-weight: 700; }
       <button class="tab" role="tab" id="t-play" aria-controls="p-play" data-tab="play">Chơi</button>
       <button class="tab" role="tab" id="t-board" aria-controls="p-board" data-tab="board">Bảng xếp hạng</button>
     </nav>
-    <div class="playerbar"><span>Người chơi: <b id="player-name"></b></span><button class="linkbtn" id="player-change" type="button">Đổi tên</button></div>
+    <div class="playerbar"><button class="linkbtn" id="install" type="button" hidden>Cài ứng dụng</button><span>Người chơi: <b id="player-name"></b></span><button class="linkbtn" id="player-change" type="button">Đổi tên</button></div>
   </div>
+  <p class="install-hint" id="install-hint" hidden>Trên iPhone/iPad: mở trang bằng Safari, bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên), rồi chọn <b>Thêm vào MH chính</b>.</p>
 
   <!-- Leaderboard -->
   <section id="p-board" role="tabpanel" aria-labelledby="t-board" hidden>
@@ -671,6 +682,22 @@ renderBoard();
 const start = Object.keys(HASH).find(k => '#' + HASH[k] === location.hash) || 'play';
 showTab(start);
 openGate();
+
+/* ---------- install as an app (PWA) ---------- */
+let installEvt = null;
+const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('install').hidden = false; });
+window.addEventListener('appinstalled', () => { installEvt = null; $('install').hidden = true; $('install-hint').hidden = true; });
+if (isIOS && !standalone) $('install').hidden = false;
+$('install').addEventListener('click', async () => {
+  if (installEvt) {
+    installEvt.prompt();
+    try { await installEvt.userChoice; } catch (_) {}
+    installEvt = null; $('install').hidden = true;
+  } else if (isIOS) $('install-hint').hidden = !$('install-hint').hidden;
+});
+if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => {});
 </script>
 </body>
 </html>
