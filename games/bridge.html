@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Qua cầu trong đêm</title>
+<meta name="description" content="Bốn người, một chiếc đèn pin, cây cầu chỉ chịu được hai người. Đưa tất cả qua cầu trong 17 phút.">
+<meta name="theme-color" content="#17242B">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Câu đố">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,700;1,7..72,500&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+/* Only what this game needs; the shared look is in app.css. */
+.timebar { height: 10px; margin: 12px 0 0; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.timebar i { display: block; height: 100%; width: calc(var(--used) * 100%); background: var(--brass); transition: width .4s ease; }
+.timebar.over i { background: var(--heavy); }
+@media (prefers-reduced-motion: reduce) { .timebar i { transition: none; } }
+/* near bank | bridge | far bank */
+.scene { display: grid; grid-template-columns: minmax(0, 1fr) minmax(44px, .42fr) minmax(0, 1fr); margin: 12px 0; align-items: stretch; }
+.bank { min-height: 190px; padding: 10px 8px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.bank.lit { background: var(--brass-soft); border-color: transparent; }
+.bank .where { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; }
+.bank .torch { margin: 0; min-height: 1.4em; font-size: 12.5px; font-weight: 600; text-align: center; color: var(--ink); }
+.bank .torch::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 30%, transparent); }
+.bank:not(.lit) .torch { visibility: hidden; }
+.bank .people { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-content: flex-start; flex: 1; }
+.span { position: relative; align-self: center; height: 34px; border-block: 3px solid var(--metal); background: repeating-linear-gradient(90deg, var(--metal-dark) 0 2px, transparent 2px 10px); opacity: .8; }
+/* a walker: a little figure with the minutes written on it */
+.walker { appearance: none; border: 0; background: none; padding: 0; cursor: pointer; position: relative; width: 46px; height: 64px; border-radius: 8px; transition: transform .15s; }
+.walker svg { display: block; width: 100%; height: 100%; fill: var(--metal-dark); }
+.walker b { position: absolute; left: 0; right: 0; bottom: 9px; text-align: center; font: 700 15px var(--f-mono); color: var(--surface); }
+.walker:hover:not(:disabled) { transform: translateY(-2px); }
+.walker:disabled { cursor: default; }
+.walker[aria-pressed="true"] { transform: translateY(-6px); }
+.walker[aria-pressed="true"] svg { fill: var(--brass); }
+.bank:not(.lit) .walker svg { opacity: .55; }
+@media (max-width: 480px) { .walker { width: 38px; height: 54px; } .walker b { font-size: 13px; bottom: 7px; } .bank { padding-inline: 4px; } .bank .people { gap: 4px; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Câu đố qua cầu · đèn pin sắp hết</p>
+      <h1>Qua cầu <em>trong đêm</em></h1>
+      <p class="lede">Bốn người phải qua một cây cầu hẹp giữa đêm tối. Cầu chỉ chịu được <b>hai người</b> mỗi lượt, và ai bước lên cầu cũng phải cầm <b>chiếc đèn pin duy nhất</b>. Mỗi người đi nhanh chậm khác nhau: 1, 2, 5 và 10 phút. Hai người đi cùng thì phải đi theo người chậm hơn. Đèn chỉ còn đủ pin cho <b>17 phút</b>.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>19 phút</b><span>nếu để người nhanh nhất lần lượt đưa từng người qua rồi cầm đèn quay lại</span></div>
+      <div class="fact ok"><b>17 phút</b><span>là đủ, nhưng phải nghĩ khác đi</span></div>
+    </div>
+  </header>
+
+  <section id="p-play" role="tabpanel" aria-labelledby="t-play" hidden>
+    <div class="stage">
+      <div class="panel">
+        <div class="scale-head">
+          <span class="step-label" id="br-steplabel"></span>
+          <span class="pill" id="br-pill"></span>
+        </div>
+        <div class="timebar" id="br-timebar" aria-hidden="true"><i></i></div>
+        <div class="scene">
+          <div class="bank" id="br-bank-0"><p class="where">Bờ bên này</p><div class="people"></div><p class="torch">Đèn pin ở đây</p></div>
+          <div class="span" aria-hidden="true"></div>
+          <div class="bank" id="br-bank-1"><p class="where">Bờ bên kia</p><div class="people"></div><p class="torch">Đèn pin ở đây</p></div>
+        </div>
+        <div class="row">
+          <button class="btn primary big" id="br-go"></button>
+          <button class="btn" id="br-reset">Làm lại từ đầu</button>
+          <button class="btn" id="br-retry" hidden>Gửi lại kết quả</button>
+        </div>
+        <p class="warn" id="br-warn"></p>
+      </div>
+      <aside class="side">
+        <div class="block">
+          <p class="label">Nhiệm vụ</p>
+          <p class="note" id="br-task"></p>
+          <p class="score" id="br-score"></p>
+        </div>
+        <ol class="log" id="br-log"></ol>
+        <div class="verdict" id="br-verdict" hidden></div>
+        <div class="block">
+          <p class="label">Mức độ</p>
+          <div class="row">
+            <div class="seg" id="br-mode"><button data-m="classic">Kinh điển</button><button data-m="hard">Khó</button></div>
+            <button class="btn" id="br-new">Ván mới</button>
+          </div>
+          <p class="note" id="br-modenote"></p>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script src="/rules.js"></script>
+<script src="/app.js"></script>
+<script>
+const { bridge } = RULES;
+// st = who has crossed, where the torch is, minutes used. sel = the people chosen for the next trip. trips = the game so far, the form the server replays.
+const br = { mode: 'classic', id: null, times: [1, 2, 5, 10], limit: 17, st: bridge.start(4), sel: [], trips: [], over: null, result: null, busy: false, error: '' };
+const FIGURE = '<svg viewBox="0 0 46 64" aria-hidden="true"><circle cx="23" cy="12" r="10"/><path d="M5 62V40a18 18 0 0 1 36 0v22a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/></svg>';
+const names = who => who.map(i => br.times[i]).join(' và ');
+const cost = who => Math.max(...who.map(i => br.times[i]));
+
+document.querySelector('.scene').addEventListener('click', e => {
+  const b = e.target.closest('.walker');
+  if (!b || br.busy || br.over) return;
+  const i = +b.dataset.i;
+  br.error = '';
+  if (br.sel.includes(i)) br.sel = br.sel.filter(x => x !== i);
+  else if (br.sel.length < 2) br.sel.push(i);
+  else br.error = 'Cầu chỉ chịu được hai người mỗi lượt.';
+  brRender();
+  document.querySelector(`.walker[data-i="${i}"]`)?.focus();
+});
+$('br-go').addEventListener('click', brGo);
+$('br-reset').addEventListener('click', () => { if (br.busy || br.over) return; Object.assign(br, { st: bridge.start(br.times.length), sel: [], trips: [], error: '' }); brRender(); });
+$('br-retry').addEventListener('click', brSubmit);
+$('br-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== br.mode) { br.mode = m; brNew(); } });
+$('br-new').addEventListener('click', brNew);
+
+async function brNew() {
+  if (br.busy) return;
+  if (!player.name) { openGate(); return; }
+  Object.assign(br, { id: null, st: bridge.start(br.times.length), sel: [], trips: [], over: null, result: null, busy: true, error: '' });
+  brRender();
+  try { const r = await startGame(br.mode); Object.assign(br, { id: r.id, times: r.times, limit: r.limit, st: bridge.start(r.times.length) }); }
+  catch (e) { br.error = errText(e); }
+  br.busy = false; brRender();
+}
+function brGo() {
+  if (br.busy || !br.id || br.over || !br.sel.length) return;
+  const who = br.sel.slice().sort((a, b) => a - b);
+  bridge.cross(br.st, br.times, who); br.trips.push(who); br.sel = []; br.error = '';
+  if (br.st.time > br.limit) br.over = 'lose';
+  else if (bridge.done(br.st)) br.over = 'win';
+  if (br.over) brSubmit(); else brRender();
+}
+// The finished game goes to the server, which replays the trips and saves the result.
+async function brSubmit() {
+  if (br.busy || !br.over || br.result) return;
+  br.busy = true; br.error = ''; brRender();
+  try { br.result = await act('finish', { trips: br.trips }); loadBoard(); }
+  catch (e) { br.error = errText(e); }
+  br.busy = false; brRender();
+}
+function brRender() {
+  const { st, times, limit } = br, playing = !!br.id && !br.over && !br.busy, left = limit - st.time;
+  [0, 1].forEach(side => {
+    const bank = $('br-bank-' + side);
+    bank.classList.toggle('lit', st.torch === side);
+    bank.querySelector('.people').innerHTML = times.map((t, i) => st.far[i] !== (side === 1) ? '' :
+      `<button class="walker" type="button" data-i="${i}" aria-pressed="${br.sel.includes(i)}" aria-label="Người đi ${t} phút"${playing && st.torch === side ? '' : ' disabled'}>${FIGURE}<b>${t}</b></button>`).join('');
+  });
+  $('br-steplabel').textContent = `Đã dùng ${st.time} / ${limit} phút`;
+  $('br-pill').textContent = left >= 0 ? `Đèn còn ${left} phút` : 'Đèn đã tắt';
+  $('br-pill').className = 'pill' + (left < 0 ? ' tilt' : '');
+  $('br-timebar').style.setProperty('--used', Math.min(1, st.time / limit));
+  $('br-timebar').classList.toggle('over', left < 0);
+  $('br-go').disabled = !playing || !br.sel.length;
+  $('br-go').textContent = !br.sel.length ? 'Chọn một hoặc hai người' : (st.torch ? '← Quay lại' : 'Qua cầu →') + ` · ${cost(br.sel)} phút`;
+  $('br-reset').disabled = br.busy || !!br.over || !br.trips.length;
+  $('br-retry').hidden = !(br.over && !br.result && !br.busy);
+  $('br-warn').textContent = br.error;
+  $('br-task').innerHTML = `Đưa cả ${times.length} người sang bờ bên kia trước khi đèn pin tắt. Số ghi trên mỗi người là số phút người đó cần để đi hết cây cầu. Đèn còn đủ pin cho <b>${limit} phút</b>.`;
+  $('br-score').innerHTML = scoreLine();
+  let total = 0;
+  $('br-log').innerHTML = br.trips.map((who, i) => {
+    total += cost(who);
+    return `<li><span class="num">${i + 1}</span><div class="body"><div class="outc"><span class="sym">${i % 2 ? '←' : '→'}</span>${who.length > 1 ? 'Hai người' : 'Người'} ${names(who)} phút ${i % 2 ? 'quay lại' : 'qua cầu'}</div><p class="why">Mất ${cost(who)} phút · tổng cộng ${total} phút</p></div></li>`;
+  }).join('');
+  setSeg($('br-mode'), 'm', br.mode);
+  $('br-modenote').textContent = br.mode === 'classic'
+    ? 'Kinh điển: bốn người 1, 2, 5 và 10 phút, đèn pin còn 17 phút.'
+    : 'Khó: năm người với thời gian ngẫu nhiên. Đèn pin chỉ đủ cho đúng cách đi nhanh nhất.';
+  const v = $('br-verdict'); v.hidden = !br.result;
+  if (br.result) {
+    const win = br.result.outcome === 'win';
+    v.className = 'verdict ' + (win ? 'good' : 'bad');
+    v.innerHTML = win
+      ? `<p class="label">✓ Kịp giờ</p><div class="big">Cả nhóm qua cầu trong <b>${br.result.time}</b> phút.</div><p>Đèn pin vừa đủ pin. Đây là cách đi nhanh nhất có thể.</p><p>Kết quả đã được lưu.</p>`
+      : `<p class="label">✗ Đèn pin đã tắt</p><div class="big">Đã mất <b>${br.result.time}</b> phút, đèn chỉ đủ ${limit} phút.</div><p>Vẫn có cách qua cầu trong ${limit} phút. Thử nghĩ lại xem ai nên đi cùng ai.</p><p>Kết quả đã được lưu.</p>`;
+  }
+}
+
+brRender();
+initPage({
+  game: 'bridge', title: 'Qua cầu trong đêm', eyebrow: 'Câu đố qua cầu · đèn pin sắp hết',
+  modes: { classic: 'Kinh điển', hard: 'Khó' }, starLabel: 'Thắng (khó)', stepLabel: 'Số phút',
+  onPlayer(changed) { if (changed || !br.id) brNew(); },
+  onBoard: brRender
+});
+</script>
+</body>
+</html>

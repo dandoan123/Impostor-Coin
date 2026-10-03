@@ -1,9 +1,19 @@
-# Bài toán 12 đồng xu
+# Câu đố kinh điển
 
-Trò chơi trên web: có 12 đồng xu, một đồng giả nặng hơn hoặc nhẹ hơn. Người chơi đặt đồng xu lên cân hai đĩa, chỉ được cân 3 lần để tìm đồng giả và nói nó nặng hay nhẹ.
+Bộ trò chơi trên web, mỗi trò là một bài toán nổi tiếng. Trang chủ (`/`) là menu chọn trò chơi.
 
-- Người chơi phải nhập tên trước khi chơi. Kết quả mỗi ván được lưu lại và hiện trên bảng xếp hạng.
-- Mỗi ván chạy trên server, nên người chơi không xem được đồng giả trong mã nguồn trang.
+| Trò chơi | Địa chỉ | Bài toán | Chạy ở đâu |
+|---|---|---|---|
+| Bài toán 12 đồng xu | `/coins` | Tìm đồng giả (nặng hoặc nhẹ hơn) trong 12 đồng bằng 3 lần cân | Server |
+| Hai quả trứng, 100 tầng | `/eggs` | Tìm tầng cao nhất trứng không vỡ với 2 quả trứng và 14 lần thả | Server |
+| Nim | `/nim` | Lần lượt bốc đồng xu với máy, ai bốc đồng cuối cùng thì thắng | Server |
+| Qua cầu trong đêm | `/bridge` | Đưa 4 người qua cầu trong 17 phút với một chiếc đèn pin | Trang, server kiểm tra lại |
+| Hai bình, một vòi nước | `/jugs` | Đong đúng 4 lít bằng bình 3 lít và bình 5 lít | Trang, server kiểm tra lại |
+| Tháp Hà Nội | `/hanoi` | Chuyển chồng đĩa sang cọc khác với ít bước nhất | Trang, server kiểm tra lại |
+
+- Người chơi phải nhập tên trước khi chơi. Kết quả mỗi ván được lưu lại, mỗi trò có bảng xếp hạng riêng.
+- Ba trò đầu chạy trên server, nên người chơi không xem được đáp án trong mã nguồn trang. Ở chế độ khó, máy không chọn đáp án trước mà luôn trả lời theo hướng bất lợi nhất cho người chơi, nên chỉ cách làm đúng mới thắng.
+- Ba trò sau chơi ngay trên trang. Khi xong, trang gửi các bước đi lên server; server đi lại từng bước theo cùng bộ luật (`rules.js`) rồi mới ghi kết quả.
 - Có thể cài như một ứng dụng (PWA) trên Android, iPhone và máy tính.
 - Không cần thư viện ngoài, chỉ cần Node.js 18 trở lên.
 
@@ -65,9 +75,26 @@ PWA chỉ cài được khi trang chạy qua HTTPS (hoặc `localhost`).
 
 | File | Vai trò |
 |---|---|
-| `index.html` | Giao diện trò chơi |
-| `core.js` | Logic cân dùng chung cho trang và server |
+| `index.html` | Menu chọn trò chơi |
+| `games/<tên>.html` | Trang của từng trò, mở ở địa chỉ `/<tên>` |
+| `games/<tên>.js` | Logic của từng trò trên server (không gửi cho trình duyệt) |
+| `app.css`, `app.js` | Giao diện và mã dùng chung của mọi trang: nhập tên, gọi server, tab, bảng xếp hạng |
+| `core.js` | Luật cân đồng xu, dùng chung cho trang và server |
+| `rules.js` | Luật của Tháp Hà Nội, đong nước, qua cầu, dùng chung cho trang và server |
 | `server.js` | Server: chạy ván chơi, lưu kết quả, bảng xếp hạng |
-| `extras.js` | Các tab mở thêm, server chỉ gửi cho người chơi đủ điều kiện |
+| `extras.js` | Các tab mở thêm của trò 12 đồng xu, server chỉ gửi cho người chơi đủ điều kiện |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Phần PWA |
 | `render.yaml` | Cấu hình deploy lên Render |
+
+## Thêm một trò chơi mới
+
+1. Viết `games/<tên>.js`: logic trên server, gồm `label`, `modes`, `start`, `actions`, `abandon`, `star`, `steps`, `csv`. Xem `games/eggs.js` (trò chạy trên server) hoặc `games/hanoi.js` (trò chơi trên trang, server kiểm tra lại) làm mẫu.
+2. Viết `games/<tên>.html`: trang trò chơi. Trang nạp `/app.js` rồi gọi `initPage({ game: '<tên>', ... })` để có sẵn ô nhập tên, tab và bảng xếp hạng.
+3. Thêm `<tên>` vào `GAME_IDS` trong `server.js` và vào `SHELL` trong `sw.js` (nhớ đổi tên `CACHE`).
+4. Thêm một thẻ `<a class="game">` vào menu trong `index.html`.
+
+## Lưu ý khi nâng cấp từ bản chỉ có 12 đồng xu
+
+- Kết quả cũ trong `results.jsonl` được giữ nguyên và tính cho trò 12 đồng xu.
+- `results.csv` có thêm cột “Trò chơi”. Lần đầu chạy bản mới, server đổi tên file cũ thành `results-old.csv` rồi ghi lại `results.csv` từ `results.jsonl`.
+- Trang chủ `/` giờ là menu; trò 12 đồng xu chuyển sang `/coins`.

@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hai quả trứng, 100 tầng</title>
+<meta name="description" content="Tìm tầng cao nhất mà trứng không vỡ, chỉ với 2 quả trứng và 14 lần thả.">
+<meta name="theme-color" content="#17242B">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Câu đố">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,700;1,7..72,500&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+/* Only what this game needs; the shared look is in app.css. */
+.tower { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; margin: 14px 0 12px; padding: 10px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.floor { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 700 12px var(--f-mono); font-variant-numeric: tabular-nums; padding: 0; aspect-ratio: 1 / .8; border-radius: 6px; cursor: pointer; }
+.floor:hover:not(:disabled) { border-color: var(--ink); }
+.floor:disabled { cursor: default; }
+.floor[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
+.floor.safe { background: var(--ok-soft); border-color: transparent; }
+.floor.dead { background: var(--heavy-soft); border-color: transparent; }
+.floor.hit-safe { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.floor.hit-broke { background: var(--heavy); border-color: var(--heavy); color: var(--surface); }
+.floor.fresh { animation: land .5s ease-out; }
+@keyframes land { from { transform: scale(1.5); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .floor.fresh { animation: none; } }
+@media (max-width: 480px) { .tower { gap: 3px; padding: 6px; } .floor { font-size: 10.5px; border-radius: 5px; } }
+.eggs { display: inline-flex; gap: 6px; align-items: center; }
+.egg { width: 17px; height: 22px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: radial-gradient(circle at 36% 30%, #FFFDF6 0 14%, #F1E3C6 55%, #CDB88F 100%); box-shadow: inset 0 0 0 1.5px var(--coin-edge); }
+.egg.broken { background: none; box-shadow: none; border: 1.5px dashed var(--muted); opacity: .6; }
+.swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.answer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.answer .input { width: 6.5em; font-family: var(--f-mono); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Câu đố thả trứng · tối đa 14 lần thả</p>
+      <h1>Hai quả trứng, <em>100 tầng</em></h1>
+      <p class="lede">Một tòa nhà cao 100 tầng. Có một tầng cao nhất mà trứng rơi xuống vẫn <b>không vỡ</b>; thả từ bất kỳ tầng nào cao hơn thì trứng vỡ. Bạn chỉ có <b>2 quả trứng</b> và <b>14 lần thả</b> để tìm ra tầng đó. Trứng không vỡ thì nhặt lên dùng tiếp, trứng vỡ thì mất.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>101</b><span>khả năng: tầng cần tìm là một số từ 0 (vỡ ngay ở tầng 1) đến 100 (không tầng nào làm vỡ)</span></div>
+      <div class="fact"><b>14</b><span>lần thả là vừa đủ. Với 13 lần thì không cách nào chắc chắn tìm ra</span></div>
+    </div>
+  </header>
+
+  <section id="p-play" role="tabpanel" aria-labelledby="t-play" hidden>
+    <div class="stage">
+      <div class="panel">
+        <div class="scale-head">
+          <span class="step-label" id="eg-steplabel"></span>
+          <span class="pips" id="eg-pips" aria-hidden="true"></span>
+          <span class="pill" id="eg-pill"></span>
+        </div>
+        <div class="tower" id="eg-tower" role="group" aria-label="Tòa nhà 100 tầng, tầng 100 ở trên cùng"></div>
+        <div class="row">
+          <button class="btn primary big" id="eg-drop"></button>
+          <span class="eggs" id="eg-eggs" aria-hidden="true"></span>
+          <span class="note" id="eg-eggnote"></span>
+        </div>
+        <p class="warn" id="eg-warn"></p>
+        <p class="legend">
+          <span><i class="swatch" style="background:var(--ok)"></i>đã thả, không vỡ</span>
+          <span><i class="swatch" style="background:var(--heavy)"></i>đã thả, vỡ</span>
+          <span id="eg-legend-hint" hidden><i class="swatch" style="background:var(--ok-soft)"></i>chắc chắn không vỡ</span>
+          <span id="eg-legend-hint2" hidden><i class="swatch" style="background:var(--heavy-soft)"></i>chắc chắn vỡ</span>
+        </p>
+      </div>
+      <aside class="side">
+        <div class="block">
+          <p class="label">Nhiệm vụ</p>
+          <p class="note">Tìm tầng cao nhất mà trứng rơi xuống không vỡ. Chọn một tầng trong tòa nhà rồi bấm thả. Bạn có 2 quả trứng và tối đa 14 lần thả.</p>
+          <p class="score" id="eg-score"></p>
+        </div>
+        <ol class="log" id="eg-log"></ol>
+        <div class="block">
+          <label class="label" for="eg-answer">Đáp án: tầng cao nhất trứng không vỡ</label>
+          <div class="answer">
+            <input class="input" id="eg-answer" type="number" inputmode="numeric" min="0" max="100" step="1" placeholder="0–100">
+            <button class="btn primary" id="eg-submit">Chốt đáp án</button>
+          </div>
+          <p class="note small">Nhập 0 nếu trứng vỡ ngay từ tầng 1.</p>
+        </div>
+        <div class="verdict" id="eg-verdict" hidden></div>
+        <div class="block">
+          <p class="label">Đối thủ</p>
+          <div class="row">
+            <div class="seg" id="eg-mode"><button data-m="adv">Khó</button><button data-m="rand">Ngẫu nhiên</button></div>
+            <button class="btn" id="eg-new">Ván mới</button>
+          </div>
+          <p class="note" id="eg-modenote"></p>
+          <label class="check"><input type="checkbox" id="eg-hints"> Hiện các tầng đã loại được</label>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const FLOORS = 100, EGGS = 2, MAX_DROPS = 14;
+const eg = { mode: 'adv', id: null, drops: [], eggs: EGGS, sel: null, over: false, hints: false, reveal: null, fresh: false, busy: false, error: '' };
+
+/* ---------- the building: floor 100 on the top row, floor 1 on the bottom row ---------- */
+const floorBtns = {};
+for (let row = FLOORS / 10 - 1; row >= 0; row--) {
+  for (let col = 1; col <= 10; col++) {
+    const f = row * 10 + col, b = document.createElement('button');
+    b.className = 'floor'; b.type = 'button'; b.textContent = f;
+    b.addEventListener('click', () => { if (canDrop()) { eg.sel = eg.sel === f ? null : f; egRender(); } });
+    $('eg-tower').appendChild(b); floorBtns[f] = b;
+  }
+}
+$('eg-pips').innerHTML = '<span></span>'.repeat(MAX_DROPS);
+$('eg-drop').addEventListener('click', egDrop);
+$('eg-submit').addEventListener('click', egSubmit);
+$('eg-answer').addEventListener('input', egRender);
+$('eg-answer').addEventListener('keydown', e => { if (e.key === 'Enter') egSubmit(); });
+$('eg-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== eg.mode) { eg.mode = m; egNew(); } });
+$('eg-new').addEventListener('click', egNew);
+$('eg-hints').addEventListener('change', e => { eg.hints = e.target.checked; egRender(); });
+
+const canDrop = () => !eg.busy && !eg.over && !!eg.id && eg.eggs > 0 && eg.drops.length < MAX_DROPS;
+// What the drops so far allow: the answer lies in lo..hi.
+function range(drops) {
+  let lo = 0, hi = FLOORS;
+  drops.forEach(d => { if (d.broke) hi = Math.min(hi, d.f - 1); else lo = Math.max(lo, d.f); });
+  return { lo, hi };
+}
+function answer() {
+  const v = $('eg-answer').value.trim(), t = Number(v);
+  return v !== '' && Number.isInteger(t) && t >= 0 && t <= FLOORS ? t : null;
+}
+async function egNew() {
+  if (eg.busy) return;
+  if (!player.name) { openGate(); return; }
+  Object.assign(eg, { id: null, drops: [], eggs: EGGS, sel: null, over: false, reveal: null, fresh: false, busy: true, error: '' });
+  $('eg-answer').value = '';
+  egRender();
+  try { eg.id = (await startGame(eg.mode)).id; }
+  catch (e) { eg.error = errText(e); }
+  eg.busy = false; egRender();
+}
+async function egDrop() {
+  if (!canDrop() || !eg.sel) return;
+  const f = eg.sel;
+  eg.busy = true; eg.error = ''; egRender();
+  try {
+    const r = await act('drop', { f });
+    eg.drops.push({ f, broke: r.broke }); eg.eggs = r.eggs; eg.sel = null; eg.fresh = true;
+  } catch (e) { eg.error = errText(e); }
+  eg.busy = false; egRender();
+}
+async function egSubmit() {
+  const t = answer();
+  if (eg.busy || !eg.id || eg.over || t === null) return;
+  eg.busy = true; eg.error = ''; egRender();
+  try {
+    eg.reveal = await act('guess', { t });
+    eg.over = true; eg.sel = null;
+    loadBoard();
+  } catch (e) { eg.error = errText(e); }
+  eg.busy = false; egRender();
+}
+const truthText = t => t === 0 ? 'Trứng vỡ ngay từ tầng 1.' : t === FLOORS ? 'Trứng không vỡ ở tầng nào cả.' : `Tầng cao nhất trứng không vỡ là <b>${t}</b>.`;
+function egRender() {
+  const n = eg.drops.length, last = eg.drops[n - 1], open = canDrop();
+  // Once the answer is out every floor is coloured; before that only when hints are on.
+  const known = eg.reveal ? { lo: eg.reveal.truth, hi: eg.reveal.truth } : eg.hints ? range(eg.drops) : null;
+  const hit = {};
+  eg.drops.forEach(d => { hit[d.f] = d.broke ? 'hit-broke' : 'hit-safe'; });
+  for (let f = 1; f <= FLOORS; f++) {
+    const b = floorBtns[f], state = hit[f] || (known ? (f <= known.lo ? 'safe' : f > known.hi ? 'dead' : '') : '');
+    b.className = 'floor ' + state + (eg.fresh && last && last.f === f ? ' fresh' : '');
+    b.disabled = !open;
+    b.setAttribute('aria-pressed', String(eg.sel === f));
+    b.setAttribute('aria-label', `Tầng ${f}` + ({ 'hit-safe': ', đã thả, không vỡ', 'hit-broke': ', đã thả, vỡ', safe: ', chắc chắn không vỡ', dead: ', chắc chắn vỡ' }[state] || ''));
+  }
+  eg.fresh = false;
+  $('eg-steplabel').textContent = `Đã thả ${n} / ${MAX_DROPS}`;
+  [...$('eg-pips').children].forEach((s, i) => s.classList.toggle('used', i < n));
+  const pill = $('eg-pill');
+  pill.textContent = last ? `Tầng ${last.f} · ${last.broke ? 'vỡ' : 'không vỡ'}` : 'Chưa thả';
+  pill.className = 'pill' + (last && last.broke ? ' tilt' : '');
+  $('eg-eggs').innerHTML = Array.from({ length: EGGS }, (_, i) => `<span class="egg${i < eg.eggs ? '' : ' broken'}"></span>`).join('');
+  $('eg-eggnote').textContent = eg.eggs ? `Còn ${eg.eggs} quả trứng` : 'Hết trứng';
+  $('eg-drop').disabled = !open || !eg.sel;
+  $('eg-drop').textContent = eg.busy && eg.id && !eg.over ? 'Đang thả…' : !eg.eggs ? 'Hết trứng' : n >= MAX_DROPS ? 'Hết lượt thả' : eg.sel ? `Thả trứng từ tầng ${eg.sel}` : 'Chọn một tầng để thả';
+  $('eg-warn').textContent = eg.error || (eg.over ? '' : !eg.eggs ? 'Cả hai quả trứng đã vỡ. Hãy chốt đáp án.'
+    : n >= MAX_DROPS ? `Bạn đã dùng hết ${MAX_DROPS} lần thả. Hãy chốt đáp án.` : '');
+  $('eg-legend-hint').hidden = $('eg-legend-hint2').hidden = !known;
+  $('eg-score').innerHTML = scoreLine();
+  $('eg-log').innerHTML = eg.drops.map((d, i) => {
+    const { lo, hi } = range(eg.drops.slice(0, i + 1));
+    const left = hi === lo ? `Chỉ còn một khả năng: ${lo}.` : `Còn ${hi - lo + 1} khả năng: từ ${lo} đến ${hi}.`;
+    return `<li><span class="num">${i + 1}</span><div class="body"><div class="outc"><span class="sym">Tầng ${d.f}</span>${d.broke ? 'Vỡ' : 'Không vỡ'}</div>${eg.hints ? `<p class="why">${left}</p>` : ''}</div></li>`;
+  }).join('');
+  $('eg-answer').disabled = eg.over;
+  $('eg-submit').disabled = eg.busy || !eg.id || eg.over || answer() === null;
+  setSeg($('eg-mode'), 'm', eg.mode);
+  $('eg-modenote').textContent = eg.mode === 'adv'
+    ? 'Khó: máy chưa chọn tầng trước. Mỗi lần thả, nó trả về kết quả khiến bạn phải thả thêm nhiều lần nhất, nên đoán mò sẽ thua. Chỉ chiến lược đúng mới thắng.'
+    : 'Ngẫu nhiên: tầng được chọn sẵn từ đầu ván. Đổi chế độ hoặc bấm “Ván mới” giữa chừng thì ván đang chơi được ghi là bỏ dở.';
+  const v = $('eg-verdict'); v.hidden = !eg.reveal;
+  if (eg.reveal) {
+    const { win, truth, consistentGuess, remaining } = eg.reveal;
+    v.className = 'verdict ' + (win ? 'good' : 'bad');
+    const why = win ? (eg.mode === 'adv' ? 'Các lần thả của bạn chỉ còn đúng một khả năng. Bạn đã giải được.' : 'Chính xác.')
+      : !consistentGuess ? 'Đáp án của bạn không khớp với kết quả các lần thả.'
+      : eg.mode === 'adv' ? `Đáp án của bạn khớp với các lần thả, nhưng vẫn còn ${remaining} khả năng. Máy chọn một khả năng khác cũng khớp.`
+      : `Đáp án của bạn khớp với các lần thả, nhưng vẫn còn ${remaining} khả năng nên bạn đoán chưa trúng.`;
+    v.innerHTML = `<p class="label">${win ? '✓ Đúng' : '✗ Chưa đúng'}</p><div class="big">${truthText(truth)}</div><p>${why}</p><p>Kết quả đã được lưu.</p>`;
+  }
+}
+
+egRender();
+initPage({
+  game: 'eggs', title: 'Hai quả trứng, 100 tầng', eyebrow: 'Câu đố thả trứng · 14 lần thả',
+  modes: { adv: 'Khó', rand: 'Ngẫu nhiên' }, starLabel: 'Thắng (khó)', stepLabel: 'Số lần thả',
+  onPlayer(changed) { if (changed || !eg.id) egNew(); },
+  onBoard: egRender
+});
+</script>
+</body>
+</html>

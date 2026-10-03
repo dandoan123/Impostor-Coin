@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nim: ai bốc đồng cuối cùng?</title>
+<meta name="description" content="Trò chơi Nim: lần lượt bốc đồng xu với máy, ai bốc đồng cuối cùng thì thắng.">
+<meta name="theme-color" content="#17242B">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Câu đố">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,700;1,7..72,500&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+/* Only what this game needs; the shared look is in app.css. */
+.heap { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 12px; padding: 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.heap-row { display: grid; grid-template-columns: 4.6em minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 48px; }
+.heap-row .name { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.heap-row .coins { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 6px; }
+.heap-row .coinface { width: 34px; height: 34px; }
+.heap-row .none { color: var(--muted); font-style: italic; font-size: 14px; }
+.heap-row .bin { font: 700 14px var(--f-mono); letter-spacing: .18em; color: var(--muted); }
+/* Hovering or choosing a coin takes it and every coin to its right. */
+.coinbtn:not(:disabled):hover .coinface, .coinbtn:not(:disabled):hover ~ .coinbtn .coinface { transform: translateY(-3px); }
+.coinbtn.take .coinface { transform: translateY(-6px); box-shadow: inset 0 0 0 2px var(--coin-edge), 0 0 0 3px var(--bg), 0 0 0 5px var(--ink); }
+.coinbtn.bot .coinface { opacity: .3; transform: translateY(-6px); transition: opacity .6s, transform .6s; }
+@media (max-width: 480px) { .heap-row { grid-template-columns: 3.4em minmax(0, 1fr) auto; gap: 6px; } .heap-row .coinface { width: 28px; height: 28px; } .heap-row .coins { gap: 4px; } }
+.nimsum { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--brass-soft); font-size: 14px; }
+.nimsum b { font-family: var(--f-mono); letter-spacing: .12em; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Trò chơi Nim · đấu với máy</p>
+      <h1>Ai bốc <em>đồng cuối cùng</em>?</h1>
+      <p class="lede">Trên bàn có vài hàng đồng xu. Bạn và máy lần lượt bốc: mỗi lượt chọn <b>một hàng</b> rồi lấy bao nhiêu đồng trong hàng đó cũng được, ít nhất một đồng. Ai bốc được <b>đồng cuối cùng</b> thì thắng. Bạn đi trước.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>1901</b><span>năm Charles Bouton công bố lời giải trọn vẹn: nhìn thế cờ là biết ai thắng</span></div>
+      <div class="fact"><b>1 nước</b><span>đi sai là đủ thua, vì máy không bỏ lỡ cơ hội nào</span></div>
+    </div>
+  </header>
+
+  <section id="p-play" role="tabpanel" aria-labelledby="t-play" hidden>
+    <div class="stage">
+      <div class="panel">
+        <div class="scale-head">
+          <span class="step-label" id="nm-steplabel"></span>
+          <span class="pill" id="nm-pill"></span>
+        </div>
+        <div class="heap" id="nm-heap"></div>
+        <p class="nimsum" id="nm-sum" hidden></p>
+        <div class="row">
+          <button class="btn primary big" id="nm-take"></button>
+        </div>
+        <p class="warn" id="nm-warn"></p>
+      </div>
+      <aside class="side">
+        <div class="block">
+          <p class="label">Nhiệm vụ</p>
+          <p class="note">Bốc được đồng cuối cùng thì thắng. Bấm vào một đồng xu để chọn nó cùng mọi đồng bên phải nó trong hàng, rồi bấm nút bốc.</p>
+          <p class="score" id="nm-score"></p>
+        </div>
+        <ol class="log" id="nm-log"></ol>
+        <div class="verdict" id="nm-verdict" hidden></div>
+        <div class="block">
+          <p class="label">Đối thủ</p>
+          <div class="row">
+            <div class="seg" id="nm-mode"><button data-m="adv">Khó</button><button data-m="rand">Dễ</button></div>
+            <button class="btn" id="nm-new">Ván mới</button>
+          </div>
+          <p class="note" id="nm-modenote"></p>
+          <label class="check"><input type="checkbox" id="nm-hints"> Hiện số nhị phân của từng hàng</label>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script src="/app.js"></script>
+<script>
+// sel = the move being prepared, botMove = the machine's move while it is being shown.
+const nm = { mode: 'adv', id: null, rows: [], log: [], sel: null, botMove: null, over: null, hints: false, busy: false, error: '' };
+
+$('nm-heap').addEventListener('click', e => {
+  const b = e.target.closest('.coinbtn');
+  if (!b || nm.busy || nm.over) return;
+  const row = +b.dataset.row, k = nm.rows[row] - +b.dataset.i;
+  nm.sel = nm.sel && nm.sel.row === row && nm.sel.k === k ? null : { row, k };
+  nmRender();
+  // The row was drawn again: give the keyboard focus back to the same coin.
+  $('nm-heap').querySelector(`[data-row="${row}"][data-i="${b.dataset.i}"]`)?.focus();
+});
+$('nm-take').addEventListener('click', nmTake);
+$('nm-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== nm.mode) { nm.mode = m; nmNew(); } });
+$('nm-new').addEventListener('click', nmNew);
+$('nm-hints').addEventListener('change', e => { nm.hints = e.target.checked; nmRender(); });
+
+async function nmNew() {
+  if (nm.busy) return;
+  if (!player.name) { openGate(); return; }
+  Object.assign(nm, { id: null, rows: [], log: [], sel: null, botMove: null, over: null, busy: true, error: '' });
+  nmRender();
+  try { const r = await startGame(nm.mode); nm.id = r.id; nm.rows = r.rows; }
+  catch (e) { nm.error = errText(e); }
+  nm.busy = false; nmRender();
+}
+async function nmTake() {
+  if (nm.busy || !nm.id || nm.over || !nm.sel) return;
+  const { row, k } = nm.sel;
+  nm.busy = true; nm.error = ''; nmRender();
+  try {
+    const r = await act('take', { row, k });
+    nm.rows[row] -= k; nm.log.push({ who: 'P', row, k }); nm.sel = null;
+    if (r.bot) {
+      // Show which coins the machine takes before they disappear.
+      nm.botMove = r.bot; nmRender();
+      await wait(reduceMotion ? 300 : 1000);
+      nm.botMove = null; nm.log.push({ who: 'M', row: r.bot.row, k: r.bot.k });
+    }
+    nm.rows = r.rows;
+    if (r.over) { nm.over = r.over; loadBoard(); }
+  } catch (e) { nm.error = errText(e); }
+  nm.busy = false; nmRender();
+}
+const bits = n => n.toString(2).padStart(3, '0');
+function nmRender() {
+  const total = nm.rows.reduce((s, n) => s + n, 0), playing = !!nm.id && !nm.over;
+  $('nm-heap').innerHTML = nm.rows.map((n, row) => {
+    const coins = Array.from({ length: n }, (_, i) => {
+      const fromEnd = n - i;
+      const cls = nm.sel && nm.sel.row === row && fromEnd <= nm.sel.k ? ' take' : nm.botMove && nm.botMove.row === row && fromEnd <= nm.botMove.k ? ' bot' : '';
+      return `<button class="coinbtn${cls}" type="button" data-row="${row}" data-i="${i}" aria-label="Hàng ${row + 1}: bốc ${fromEnd} đồng"${nm.busy || nm.over ? ' disabled' : ''}><span class="coinface"></span></button>`;
+    }).join('');
+    return `<div class="heap-row"><span class="name">Hàng ${row + 1}</span><div class="coins">${coins || '<span class="none">đã hết</span>'}</div>${nm.hints ? `<span class="bin" title="${n} viết theo hệ nhị phân">${bits(n)}</span>` : ''}</div>`;
+  }).join('') || '<p class="note">Đang chia đồng xu…</p>';
+  $('nm-steplabel').textContent = nm.over ? 'Ván đã kết thúc' : nm.botMove ? 'Máy đang bốc…' : playing ? 'Lượt của bạn' : '';
+  $('nm-pill').textContent = `Còn ${total} đồng`;
+  const sum = nm.rows.reduce((x, n) => x ^ n, 0);
+  $('nm-sum').hidden = !nm.hints || !playing || !!nm.botMove;
+  $('nm-sum').innerHTML = `Cộng từng cột, cột nào có số lẻ chữ số 1 thì ghi 1: <b>${bits(sum)}</b>. `
+    + (sum ? 'Khác 000, nên người sắp đi (là bạn) có nước để thắng.' : 'Bằng 000, nên người sắp đi (là bạn) sẽ thua nếu máy không đi sai.');
+  $('nm-take').disabled = nm.busy || !playing || !nm.sel;
+  $('nm-take').textContent = nm.sel ? `Bốc ${nm.sel.k} đồng ở hàng ${nm.sel.row + 1}` : 'Chọn đồng xu để bốc';
+  $('nm-warn').textContent = nm.error;
+  $('nm-score').innerHTML = scoreLine();
+  $('nm-log').innerHTML = nm.log.map((m, i) => `<li><span class="num">${i + 1}</span><div class="body"><div class="outc"><span class="sym">${m.who === 'P' ? 'Bạn' : 'Máy'}</span>hàng ${m.row + 1}, bốc ${m.k} đồng</div></div></li>`).join('');
+  setSeg($('nm-mode'), 'm', nm.mode);
+  $('nm-modenote').textContent = nm.mode === 'adv'
+    ? 'Khó: máy luôn đi nước tốt nhất. Thế cờ lúc đầu luôn cho bạn thắng được, miễn là bạn không đi sai nước nào.'
+    : 'Dễ: máy bốc ngẫu nhiên. Đổi chế độ hoặc bấm “Ván mới” giữa chừng thì ván đang chơi được ghi là bỏ dở.';
+  const v = $('nm-verdict'); v.hidden = !nm.over;
+  if (nm.over) {
+    const win = nm.over === 'win';
+    v.className = 'verdict ' + (win ? 'good' : 'bad');
+    const why = win ? (nm.mode === 'adv' ? 'Máy không đi sai nước nào mà vẫn thua. Bạn đã tìm ra cách chơi đúng.' : 'Thử chế độ Khó: ở đó máy không đi sai nữa.')
+      : nm.mode === 'adv' ? 'Thế cờ lúc đầu cho bạn thắng được. Ở một lượt nào đó bạn đã trao lợi thế cho máy.'
+      : 'Lần này máy bốc ngẫu nhiên mà vẫn gặp may.';
+    v.innerHTML = `<p class="label">${win ? '✓ Bạn thắng' : '✗ Máy thắng'}</p><div class="big">${win ? 'Bạn' : 'Máy'} bốc đồng cuối cùng.</div><p>${why}</p><p>Kết quả đã được lưu.</p>`;
+  }
+}
+
+nmRender();
+initPage({
+  game: 'nim', title: 'Ai bốc đồng cuối cùng?', eyebrow: 'Trò chơi Nim · đấu với máy',
+  gateArt: '<div class="gate-coins" aria-hidden="true">' + '<span class="coinface"></span>'.repeat(7) + '</div>',
+  modes: { adv: 'Khó', rand: 'Dễ' }, starLabel: 'Thắng (khó)', stepLabel: 'Số lượt bốc',
+  onPlayer(changed) { if (changed || !nm.id) nmNew(); },
+  onBoard: nmRender
+});
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
-  "name": "Bài toán 12 đồng xu",
-  "short_name": "12 đồng xu",
-  "description": "Tìm đồng xu giả trong 12 đồng chỉ với 3 lần cân.",
+  "name": "Câu đố kinh điển",
+  "short_name": "Câu đố",
+  "description": "Những bài toán nổi tiếng, chơi được ngay: 12 đồng xu, thả trứng, Nim, qua cầu, đong nước, Tháp Hà Nội.",
   "lang": "vi",
   "id": "/",
   "start_url": "/",

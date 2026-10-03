@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Đong nước: hai bình, một vòi</title>
+<meta name="description" content="Chỉ có bình 3 lít và bình 5 lít, hãy đong ra đúng 4 lít nước.">
+<meta name="theme-color" content="#17242B">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Câu đố">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,700;1,7..72,500&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+/* Only what this game needs; the shared look is in app.css. */
+.jugs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0 12px; padding: 16px 12px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.jug { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+/* Both glasses stand on the same line; --h is the glass height (taller = holds more), --fill how full it is (0..1). */
+.jug .stand { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.glass { position: relative; width: min(116px, 72%); height: var(--h); border: 3px solid var(--metal); border-top: 0; border-radius: 0 0 16px 16px; overflow: hidden; background: var(--surface); }
+.glass.done { border-color: var(--ok); }
+.water { position: absolute; inset: auto 0 0 0; height: calc(var(--fill) * 100%); background: var(--light); opacity: .8; transition: height .45s ease; }
+@media (prefers-reduced-motion: reduce) { .water { transition: none; } }
+.jug .amount { font: 700 22px var(--f-mono); font-variant-numeric: tabular-nums; }
+.jug .amount small { font: 500 13px var(--f-body); color: var(--muted); }
+.jug .acts { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 210px; }
+.jug .acts .btn { padding: 8px 10px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Câu đố đong nước · hai bình không vạch chia</p>
+      <h1>Hai bình, <em>một vòi nước</em></h1>
+      <p class="lede">Bạn có một bình <b>3 lít</b>, một bình <b>5 lít</b> và một vòi nước. Hai bình không có vạch chia nào. Hãy đong ra đúng <b>4 lít</b>. Mỗi bước chỉ được đổ đầy một bình, đổ bỏ hết một bình, hoặc rót bình này sang bình kia cho đến khi bình kia đầy hoặc bình này cạn.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>6 bước</b><span>là ít nhất cho bài kinh điển với bình 3 lít và 5 lít</span></div>
+      <div class="fact"><b>ƯCLN = 1</b><span>3 và 5 không có ước chung nào ngoài 1, nên đong được mọi số lít nguyên từ 1 đến 5</span></div>
+    </div>
+  </header>
+
+  <section id="p-play" role="tabpanel" aria-labelledby="t-play" hidden>
+    <div class="stage">
+      <div class="panel">
+        <div class="scale-head">
+          <span class="step-label" id="jg-steplabel"></span>
+          <span class="pill tilt" id="jg-pill"></span>
+        </div>
+        <div class="jugs" id="jg-jugs"></div>
+        <p class="warn" id="jg-warn"></p>
+        <div class="row">
+          <button class="btn" id="jg-reset">Làm lại từ đầu</button>
+          <button class="btn" id="jg-retry" hidden>Gửi lại kết quả</button>
+        </div>
+      </div>
+      <aside class="side">
+        <div class="block">
+          <p class="label">Nhiệm vụ</p>
+          <p class="note" id="jg-task"></p>
+          <p class="score" id="jg-score"></p>
+        </div>
+        <ol class="log" id="jg-log"></ol>
+        <div class="verdict" id="jg-verdict" hidden></div>
+        <div class="block">
+          <p class="label">Mức độ</p>
+          <div class="row">
+            <div class="seg" id="jg-mode"><button data-m="classic">Kinh điển</button><button data-m="hard">Khó</button></div>
+            <button class="btn" id="jg-new">Bài mới</button>
+          </div>
+          <p class="note" id="jg-modenote"></p>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script src="/rules.js"></script>
+<script src="/app.js"></script>
+<script>
+const { jugs } = RULES;
+const TEXT = { fa: 'Đổ đầy bình A', fb: 'Đổ đầy bình B', ea: 'Đổ bỏ bình A', eb: 'Đổ bỏ bình B', ab: 'Rót bình A sang bình B', ba: 'Rót bình B sang bình A' };
+// st = litres in jug A and jug B; moves = the game so far, the form the server replays.
+const jg = { mode: 'classic', id: null, caps: [3, 5], target: 4, best: 6, st: [0, 0], moves: [], solved: false, result: null, busy: false, error: '' };
+
+$('jg-jugs').innerHTML = ['a', 'b'].map((j, i) => {
+  const other = 'ab'[1 - i].toUpperCase();
+  return `<div class="jug">
+    <div class="stand"><div class="glass" id="jg-glass-${j}"><div class="water"></div></div></div>
+    <div class="amount" id="jg-amount-${j}"></div>
+    <div class="acts">
+      <button class="btn" data-m="f${j}">Đổ đầy</button>
+      <button class="btn" data-m="e${j}">Đổ bỏ</button>
+      <button class="btn" data-m="${j}${'ab'[1 - i]}">${i ? '← ' : ''}Rót sang ${other}${i ? '' : ' →'}</button>
+    </div>
+  </div>`;
+}).join('');
+$('jg-jugs').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m) jgMove(m); });
+$('jg-reset').addEventListener('click', () => { if (jg.busy || jg.solved) return; Object.assign(jg, { st: [0, 0], moves: [], error: '' }); jgRender(); });
+$('jg-retry').addEventListener('click', jgSubmit);
+$('jg-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== jg.mode) { jg.mode = m; jgNew(); } });
+$('jg-new').addEventListener('click', jgNew);
+
+async function jgNew() {
+  if (jg.busy) return;
+  if (!player.name) { openGate(); return; }
+  Object.assign(jg, { id: null, st: [0, 0], moves: [], solved: false, result: null, busy: true, error: '' });
+  jgRender();
+  try { const r = await startGame(jg.mode); Object.assign(jg, { id: r.id, caps: r.caps, target: r.target, best: r.best }); }
+  catch (e) { jg.error = errText(e); }
+  jg.busy = false; jgRender();
+}
+const changes = m => jugs.apply(jg.st, jg.caps, m).join() !== jg.st.join();
+function jgMove(m) {
+  if (jg.busy || !jg.id || jg.solved || !changes(m)) return;
+  jg.st = jugs.apply(jg.st, jg.caps, m); jg.moves.push(m);
+  if (jugs.solved(jg.st, jg.target)) { jg.solved = true; jgSubmit(); return; }
+  jgRender();
+}
+// The finished game goes to the server, which replays the moves and saves the result.
+async function jgSubmit() {
+  if (jg.busy || !jg.solved || jg.result) return;
+  jg.busy = true; jg.error = ''; jgRender();
+  try { jg.result = await act('finish', { moves: jg.moves }); loadBoard(); }
+  catch (e) { jg.error = errText(e); }
+  jg.busy = false; jgRender();
+}
+function jgRender() {
+  const n = jg.moves.length, locked = jg.busy || !jg.id || jg.solved, tallest = Math.max(...jg.caps);
+  ['a', 'b'].forEach((j, i) => {
+    const glass = $('jg-glass-' + j);
+    glass.style.setProperty('--h', Math.round(40 + 160 * jg.caps[i] / tallest) + 'px');
+    glass.style.setProperty('--fill', jg.st[i] / jg.caps[i]);
+    glass.classList.toggle('done', jg.solved && jg.st[i] === jg.target);
+    $('jg-amount-' + j).innerHTML = `${jg.st[i]} <small>/ ${jg.caps[i]} lít · bình ${j.toUpperCase()}</small>`;
+  });
+  // A move that would change nothing (filling a full jug, pouring from an empty one) is switched off.
+  $('jg-jugs').querySelectorAll('button').forEach(b => { b.disabled = locked || !changes(b.dataset.m); });
+  $('jg-steplabel').textContent = `Đã đi ${n} bước`;
+  $('jg-pill').textContent = `Cần đong: ${jg.target} lít`;
+  $('jg-warn').textContent = jg.error;
+  $('jg-reset').disabled = jg.busy || jg.solved || !n;
+  $('jg-retry').hidden = !(jg.solved && !jg.result && !jg.busy);
+  $('jg-task').innerHTML = `Bình A chứa được <b>${jg.caps[0]} lít</b>, bình B chứa được <b>${jg.caps[1]} lít</b>. Làm sao để một trong hai bình có đúng <b>${jg.target} lít</b>? Ít nhất cần ${jg.best} bước.`;
+  $('jg-score').innerHTML = scoreLine();
+  let st = [0, 0];
+  $('jg-log').innerHTML = jg.moves.map((m, i) => {
+    st = jugs.apply(st, jg.caps, m);
+    return `<li><span class="num">${i + 1}</span><div class="body"><div class="outc">${TEXT[m]}</div><p class="why">A: ${st[0]} lít · B: ${st[1]} lít</p></div></li>`;
+  }).join('');
+  setSeg($('jg-mode'), 'm', jg.mode);
+  $('jg-modenote').textContent = jg.mode === 'classic'
+    ? 'Kinh điển: bình 3 lít và 5 lít, đong 4 lít. Chỉ ván đong xong mới được ghi lại.'
+    : 'Khó: hai bình và số lít cần đong được chọn ngẫu nhiên, cần từ 8 đến 14 bước. Bấm “Bài mới” để đổi bài khác.';
+  const v = $('jg-verdict'); v.hidden = !jg.result;
+  if (jg.result) {
+    const perfect = jg.result.n === jg.result.best;
+    v.className = 'verdict good';
+    v.innerHTML = `<p class="label">${perfect ? '✓ Tối ưu' : '✓ Đã giải'}</p><div class="big">Đong được <b>${jg.target} lít</b> sau ${jg.result.n} bước.</div>`
+      + `<p>${perfect ? 'Đây là số bước ít nhất có thể.' : `Số bước ít nhất là ${jg.result.best}. Thử lại xem có rút ngắn được không.`}</p><p>Kết quả đã được lưu.</p>`;
+  }
+}
+
+jgRender();
+initPage({
+  game: 'jugs', title: 'Hai bình, một vòi nước', eyebrow: 'Câu đố đong nước · bình 3 lít và 5 lít',
+  modes: { classic: 'Kinh điển', hard: 'Khó' }, starLabel: 'Tối ưu', stepLabel: 'Số bước', solveOnly: true,
+  onPlayer(changed) { if (changed || !jg.id) jgNew(); },
+  onBoard: jgRender
+});
+</script>
+</body>
+</html>

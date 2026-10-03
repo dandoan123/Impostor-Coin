@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tháp Hà Nội</title>
+<meta name="description" content="Chuyển cả chồng đĩa sang cọc khác, mỗi lần một đĩa, không đặt đĩa lớn lên đĩa nhỏ.">
+<meta name="theme-color" content="#17242B">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Câu đố">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,700;1,7..72,500&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+/* Only what this game needs; the shared look is in app.css. */
+.pegs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; padding: 12px 10px 8px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+/* A peg is one big button: the discs (top one first), then the base and the letter. --discs is how many discs are in play. */
+.peg { appearance: none; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; position: relative; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: calc(var(--discs) * 24px + 76px); }
+.peg:disabled { cursor: default; }
+.peg .rod { position: absolute; left: 50%; bottom: 36px; width: 8px; height: calc(var(--discs) * 24px + 18px); margin-left: -4px; border-radius: 4px 4px 0 0; background: var(--metal); }
+.peg .base { width: 96%; height: 8px; border-radius: 4px; background: var(--metal-dark); flex: none; }
+.peg .name { height: 28px; line-height: 28px; font: 700 14px/28px var(--f-mono); color: var(--muted); flex: none; }
+.disc { position: relative; flex: none; height: 22px; margin-bottom: 2px; border-radius: 11px; display: grid; place-items: center; font: 700 11.5px var(--f-mono); color: var(--coin-ink);
+  background: linear-gradient(var(--coin-hi), var(--coin) 45%, var(--coin-edge)); box-shadow: inset 0 0 0 1.5px var(--coin-edge); transition: transform .15s; }
+.peg:hover:not(:disabled) .rod + .disc { transform: translateY(-3px); }
+.peg.from .rod + .disc { transform: translateY(-16px); box-shadow: inset 0 0 0 1.5px var(--coin-edge), 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
+.peg.goal .name { color: var(--brass); }
+@media (prefers-reduced-motion: reduce) { .disc { transition: none; } }
+@media (max-width: 480px) { .pegs { gap: 4px; padding-inline: 6px; } .disc { font-size: 10.5px; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Édouard Lucas, 1883 · xếp đĩa</p>
+      <h1>Tháp <em>Hà Nội</em></h1>
+      <p class="lede">Một chồng đĩa xếp từ lớn đến nhỏ trên cọc A. Hãy chuyển cả chồng sang <b>cọc C</b>. Mỗi lần chỉ được chuyển <b>một đĩa</b> nằm trên cùng, và không bao giờ được đặt <b>đĩa lớn lên đĩa nhỏ</b>.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>2ⁿ − 1</b><span>số bước ít nhất để chuyển n đĩa: 7 bước cho 3 đĩa, 127 bước cho 7 đĩa</span></div>
+      <div class="fact"><b>64 đĩa</b><span>trong truyền thuyết: mỗi giây chuyển một đĩa thì mất khoảng 585 tỉ năm</span></div>
+    </div>
+  </header>
+
+  <section id="p-play" role="tabpanel" aria-labelledby="t-play" hidden>
+    <div class="stage">
+      <div class="panel">
+        <div class="scale-head">
+          <span class="step-label" id="hn-steplabel"></span>
+          <span class="pill" id="hn-pill"></span>
+        </div>
+        <div class="pegs" id="hn-pegs"></div>
+        <p class="warn" id="hn-warn"></p>
+        <div class="row"><button class="btn" id="hn-retry" hidden>Gửi lại kết quả</button></div>
+      </div>
+      <aside class="side">
+        <div class="block">
+          <p class="label">Nhiệm vụ</p>
+          <p class="note">Chuyển cả chồng đĩa sang cọc C với càng ít bước càng tốt. Bấm vào một cọc để nhấc đĩa trên cùng, rồi bấm vào cọc khác để đặt nó xuống.</p>
+          <p class="score" id="hn-score"></p>
+        </div>
+        <div class="verdict" id="hn-verdict" hidden></div>
+        <div class="block">
+          <p class="label">Số đĩa</p>
+          <div class="row">
+            <div class="seg" id="hn-mode"><button data-m="3">3</button><button data-m="4">4</button><button data-m="5">5</button><button data-m="6">6</button><button data-m="7">7</button></div>
+            <button class="btn" id="hn-new">Chơi lại</button>
+          </div>
+          <p class="note" id="hn-modenote"></p>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script src="/rules.js"></script>
+<script src="/app.js"></script>
+<script>
+const { hanoi } = RULES;
+const NAMES = ['A', 'B', 'C'];
+// moves: the game so far as digit pairs ("02" = peg A to peg C), the form the server replays. from: the peg whose top disc is lifted.
+const hn = { mode: '4', id: null, discs: 4, pegs: hanoi.start(4), moves: '', from: null, solved: false, result: null, busy: false, error: '' };
+
+const pegBtns = NAMES.map((name, i) => {
+  const b = document.createElement('button');
+  b.className = 'peg' + (i === 2 ? ' goal' : ''); b.type = 'button';
+  b.addEventListener('click', () => hnPeg(i));
+  $('hn-pegs').appendChild(b);
+  return b;
+});
+$('hn-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== hn.mode) { hn.mode = m; hnNew(); } });
+$('hn-new').addEventListener('click', hnNew);
+$('hn-retry').addEventListener('click', hnSubmit);
+
+async function hnNew() {
+  if (hn.busy) return;
+  if (!player.name) { openGate(); return; }
+  const discs = Number(hn.mode);
+  Object.assign(hn, { id: null, discs, pegs: hanoi.start(discs), moves: '', from: null, solved: false, result: null, busy: true, error: '' });
+  hnRender();
+  try { hn.id = (await startGame(hn.mode)).id; }
+  catch (e) { hn.error = errText(e); }
+  hn.busy = false; hnRender();
+}
+function hnPeg(i) {
+  if (hn.busy || !hn.id || hn.solved) return;
+  hn.error = '';
+  if (hn.from === null) { if (hn.pegs[i].length) hn.from = i; }
+  else if (hn.from === i) hn.from = null;
+  else if (hanoi.can(hn.pegs, hn.from, i)) {
+    hanoi.move(hn.pegs, hn.from, i); hn.moves += '' + hn.from + i; hn.from = null;
+    if (hanoi.solved(hn.pegs)) { hn.solved = true; hnSubmit(); return; }
+  } else { hn.error = 'Không được đặt đĩa lớn lên đĩa nhỏ.'; hn.from = null; }
+  hnRender();
+}
+// The finished game goes to the server, which replays the moves and saves the result.
+async function hnSubmit() {
+  if (hn.busy || !hn.solved || hn.result) return;
+  hn.busy = true; hn.error = ''; hnRender();
+  try { hn.result = await act('finish', { moves: hn.moves }); loadBoard(); }
+  catch (e) { hn.error = errText(e); }
+  hn.busy = false; hnRender();
+}
+function hnRender() {
+  const n = hn.moves.length / 2, best = hanoi.best(hn.discs), locked = hn.busy || !hn.id || hn.solved;
+  $('hn-pegs').style.setProperty('--discs', hn.discs);
+  pegBtns.forEach((b, i) => {
+    const peg = hn.pegs[i];
+    b.innerHTML = '<span class="rod"></span>'
+      + peg.slice().reverse().map(d => `<span class="disc" style="width:${24 + 72 * d / hn.discs}%">${d}</span>`).join('')
+      + `<span class="base"></span><span class="name">${NAMES[i]}</span>`;
+    b.classList.toggle('from', hn.from === i);
+    b.disabled = locked;
+    b.setAttribute('aria-label', `Cọc ${NAMES[i]}: ` + (peg.length ? `${peg.length} đĩa, trên cùng là đĩa ${peg[peg.length - 1]}` : 'trống')
+      + (hn.from === i ? '. Đang nhấc đĩa trên cùng' : hn.from !== null ? '. Bấm để đặt đĩa xuống đây' : ''));
+  });
+  $('hn-steplabel').textContent = `Đã đi ${n} bước`;
+  $('hn-pill').textContent = `Ít nhất ${best} bước`;
+  $('hn-warn').textContent = hn.error;
+  $('hn-retry').hidden = !(hn.solved && !hn.result && !hn.busy);
+  $('hn-score').innerHTML = scoreLine();
+  setSeg($('hn-mode'), 'm', hn.mode);
+  $('hn-modenote').textContent = `${hn.discs} đĩa cần ít nhất ${best} bước. Chỉ ván chuyển xong mới được ghi lại.`;
+  const v = $('hn-verdict'); v.hidden = !hn.result;
+  if (hn.result) {
+    const perfect = hn.result.n === hn.result.best;
+    v.className = 'verdict good';
+    v.innerHTML = `<p class="label">${perfect ? '✓ Tối ưu' : '✓ Đã giải'}</p><div class="big">Xong trong <b>${hn.result.n}</b> bước.</div>`
+      + `<p>${perfect ? 'Đây là số bước ít nhất có thể.' : `Số bước ít nhất là ${hn.result.best}. Thử lại xem có rút ngắn được không.`}</p><p>Kết quả đã được lưu.</p>`;
+  }
+}
+
+hnRender();
+initPage({
+  game: 'hanoi', title: 'Tháp Hà Nội', eyebrow: 'Édouard Lucas, 1883 · xếp đĩa',
+  modes: { 3: '3 đĩa', 4: '4 đĩa', 5: '5 đĩa', 6: '6 đĩa', 7: '7 đĩa' }, starLabel: 'Tối ưu', stepLabel: 'Số bước', solveOnly: true,
+  onPlayer(changed) { if (changed || !hn.id) hnNew(); },
+  onBoard: hnRender
+});
+</script>
+</body>
+</html>

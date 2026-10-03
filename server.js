@@ -1,4 +1,4 @@
-// Server for the 12-coin game. Run: node server.js  (or PORT=8080 node server.js)
+// Server for the puzzle collection. Run: node server.js  (or PORT=8080 node server.js)
 // Players on the same network open http://<this machine's IP>:<port>.
 // Every finished game is appended to data/results.jsonl and data/results.csv.
 //
@@ -13,18 +13,26 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { HYPS, weigh } = require('./core.js');
+
+// The games, in menu order. Each one has its logic in games/<id>.js (never sent to the browser)
+// and its page in games/<id>.html (served at /<id>).
+const GAME_IDS = ['coins', 'eggs', 'nim', 'bridge', 'jugs', 'hanoi'];
+const GAMES = Object.fromEntries(GAME_IDS.map(id => [id, require(`./games/${id}.js`)]));
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = __dirname;
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, 'data');
 const JSONL = path.join(DATA_DIR, 'results.jsonl');
 const CSV = path.join(DATA_DIR, 'results.csv');
+const HTML = 'text/html; charset=utf-8', JS = 'text/javascript; charset=utf-8';
 const STATIC = {
-  '/': ['index.html', 'text/html; charset=utf-8'],
-  '/index.html': ['index.html', 'text/html; charset=utf-8'],
-  '/core.js': ['core.js', 'text/javascript; charset=utf-8'],
-  '/sw.js': ['sw.js', 'text/javascript; charset=utf-8'],
+  '/': ['index.html', HTML],
+  '/index.html': ['index.html', HTML],
+  '/app.css': ['app.css', 'text/css; charset=utf-8'],
+  '/app.js': ['app.js', JS],
+  '/core.js': ['core.js', JS],
+  '/rules.js': ['rules.js', JS],
+  '/sw.js': ['sw.js', JS],
   '/manifest.webmanifest': ['manifest.webmanifest', 'application/manifest+json; charset=utf-8'],
   '/icons/icon-192.png': ['icons/icon-192.png', 'image/png'],
   '/icons/icon-512.png': ['icons/icon-512.png', 'image/png'],
@@ -32,6 +40,7 @@ const STATIC = {
   '/icons/favicon-32.png': ['icons/favicon-32.png', 'image/png'],
   '/favicon.ico': ['icons/favicon-32.png', 'image/png']
 };
+for (const id of GAME_IDS) STATIC['/' + id] = [`games/${id}.html`, HTML];
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 // Each IP may send at most this many game requests per minute.
@@ -39,7 +48,7 @@ const RATE_LIMIT = 90;
 // Times in results.csv are written in this zone (cloud servers usually run on UTC).
 const TIME_ZONE = process.env.TIME_ZONE || 'Asia/Ho_Chi_Minh';
 const EXTRAS = path.join(ROOT, 'extras.js');
-// Players who have lost more than this many games also get the solver/solution tabs (extras.js).
+// Players who have lost more than this many 12-coin games also get its solver/solution tabs (extras.js).
 // The page is never told about this rule.
 const UNLOCK_AFTER_LOSSES = 100;
 const GAME_TTL_MS = 30 * 60 * 1000;
@@ -52,56 +61,84 @@ const results = [];
 if (fs.existsSync(JSONL)) {
   for (const line of fs.readFileSync(JSONL, 'utf8').split('\n')) {
     if (!line.trim()) continue;
-    try { results.push(JSON.parse(line)); } catch (_) { /* skip a damaged line */ }
+    let rec;
+    try { rec = JSON.parse(line); } catch (_) { continue; /* skip a damaged line */ }
+    if (!rec.game) rec.game = 'coins'; // saved before there were other games
+    if (GAMES[rec.game]) results.push(rec);
   }
 }
-const CSV_HEADER = ['Thời gian', 'Tên', 'Chế độ', 'Kết quả', 'Đáp án người chơi', 'Đồng giả', 'Số lần cân', 'Các lần cân', 'Thời gian chơi (giây)', 'IP'];
+const CSV_HEADER = ['Thời gian', 'Tên', 'Trò chơi', 'Chế độ', 'Kết quả', 'Đáp án người chơi', 'Đáp án đúng', 'Số bước', 'Diễn biến', 'Thời gian chơi (giây)', 'IP'];
 const csvCell = v => {
   let s = String(v ?? '');
   if (/^[=+\-@]/.test(s)) s = "'" + s; // keep Excel from treating a name as a formula
   return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
-const hypText = id => id ? `${parseInt(id, 10)} ${id.endsWith('H') ? 'nặng' : 'nhẹ'}` : '';
-const SYM = { gt: 'T>P', eq: 'T=P', lt: 'T<P' };
+// BOM so Excel reads Vietnamese names as UTF-8.
+const CSV_HEAD = '﻿' + CSV_HEADER.map(csvCell).join(',') + '\r\n';
+function csvRow(rec) {
+  const game = GAMES[rec.game], d = game.csv(rec);
+  return [
+    new Date(rec.at).toLocaleString('vi-VN', { timeZone: TIME_ZONE }), rec.name, game.label, game.modes[rec.mode] || rec.mode,
+    { win: 'Thắng', lose: 'Thua', abandoned: 'Bỏ dở' }[rec.outcome], d.guess, d.truth, game.steps(rec), d.detail,
+    Math.round(rec.durationMs / 1000), rec.ip
+  ].map(csvCell).join(',') + '\r\n';
+}
+// A results.csv from before the other games were added has different columns:
+// set it aside as results-old.csv and write the file again from results.jsonl.
+try {
+  if (fs.existsSync(CSV) && !fs.readFileSync(CSV, 'utf8').startsWith(CSV_HEAD)) {
+    fs.renameSync(CSV, path.join(DATA_DIR, 'results-old.csv'));
+    fs.writeFileSync(CSV, CSV_HEAD + results.map(csvRow).join(''), 'utf8');
+  }
+} catch (e) {
+  console.warn(`Không cập nhật được ${CSV} sang dạng cột mới (có thể đang mở trong Excel). Hãy đóng file rồi chạy lại server.`);
+}
 
 function saveResult(rec) {
   results.push(rec);
   fs.appendFileSync(JSONL, JSON.stringify(rec) + '\n', 'utf8');
-  const row = [
-    new Date(rec.at).toLocaleString('vi-VN', { timeZone: TIME_ZONE }), rec.name, rec.mode === 'adv' ? 'Khó' : 'Ngẫu nhiên',
-    { win: 'Thắng', lose: 'Thua', abandoned: 'Bỏ dở' }[rec.outcome], hypText(rec.guess), hypText(rec.fake),
-    rec.weighs.length, rec.weighs.map(w => `${w.L.join(' ')} | ${w.R.join(' ')} → ${SYM[w.o]}`).join('; '),
-    Math.round(rec.durationMs / 1000), rec.ip
-  ];
   try {
-    const fresh = !fs.existsSync(CSV);
-    // BOM so Excel reads Vietnamese names as UTF-8.
-    fs.appendFileSync(CSV, (fresh ? '﻿' + CSV_HEADER.map(csvCell).join(',') + '\r\n' : '') + row.map(csvCell).join(',') + '\r\n', 'utf8');
+    fs.appendFileSync(CSV, (fs.existsSync(CSV) ? '' : CSV_HEAD) + csvRow(rec), 'utf8');
   } catch (e) {
     console.warn(`Không ghi được ${CSV} (có thể đang mở trong Excel). Kết quả vẫn được lưu trong ${JSONL}.`);
   }
-  console.log(`[${new Date(rec.at).toLocaleTimeString('vi-VN', { timeZone: TIME_ZONE })}] ${rec.name}: ${rec.outcome} (${rec.mode}, ${rec.weighs.length} lần cân)`);
+  const game = GAMES[rec.game];
+  console.log(`[${new Date(rec.at).toLocaleTimeString('vi-VN', { timeZone: TIME_ZONE })}] ${rec.name}: ${game.label} (${game.modes[rec.mode] || rec.mode}), ${rec.outcome}`);
+}
+
+// Per player (names compared without case): games played, wins, and "stars" as each game defines them
+// (a win against the hard opponent, or a solution in the fewest moves).
+function standings(id) {
+  const by = new Map();
+  for (const r of results) {
+    if (r.game !== id) continue;
+    const key = r.name.toLocaleLowerCase('vi');
+    const p = by.get(key) || { name: r.name, played: 0, wins: 0, stars: 0, last: r.at };
+    p.played++; if (r.outcome === 'win') p.wins++; if (GAMES[id].star(r)) p.stars++;
+    if (r.at >= p.last) { p.last = r.at; p.name = r.name; }
+    by.set(key, p);
+  }
+  return by;
 }
 
 /* ---------- games (kept in memory while being played) ---------- */
+// g.s is the game's own state, made by its start() and changed by its actions.
 const games = new Map();
-const pick = arr => arr[crypto.randomInt(arr.length)];
 
-function finish(g, outcome, guess, fake) {
+function finish(g, end) {
   if (g.over) return;
   g.over = true;
-  saveResult({
-    at: new Date().toISOString(), name: g.name, mode: g.mode, outcome, guess: guess || null, fake: fake || null,
-    weighs: g.weighs, durationMs: Date.now() - g.startedAt, ip: g.ip
-  });
+  saveResult({ at: new Date().toISOString(), game: g.game, name: g.name, mode: g.mode, ...end, durationMs: Date.now() - g.startedAt, ip: g.ip });
+}
+// A game left half-way is saved as abandoned, when its logic says there is something worth saving.
+function abandon(g) {
+  const left = !g.over && GAMES[g.game].abandon(g.s);
+  if (left) finish(g, { outcome: 'abandoned', ...left });
 }
 function sweep() {
   const now = Date.now();
   for (const [id, g] of games) {
-    if (now - g.touched > GAME_TTL_MS) {
-      if (!g.over && g.weighs.length) finish(g, 'abandoned', null, g.mode === 'rand' ? g.h.id : null);
-      games.delete(id);
-    }
+    if (now - g.touched > GAME_TTL_MS) { abandon(g); games.delete(id); }
   }
 }
 setInterval(sweep, 60 * 1000).unref();
@@ -110,77 +147,51 @@ function cleanName(v) {
   if (typeof v !== 'string') return '';
   return v.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 30);
 }
-function validPans(L, R) {
-  const ok = a => Array.isArray(a) && a.every(x => Number.isInteger(x) && x >= 1 && x <= 12);
-  if (!ok(L) || !ok(R) || !L.length || L.length !== R.length) return false;
-  return new Set([...L, ...R]).size === L.length + R.length;
-}
 
 const api = {
   'POST /api/start'(body, ip) {
     const name = cleanName(body.name);
     if (!name) return [400, { error: 'Bạn cần nhập tên trước khi chơi.' }];
-    const mode = body.mode === 'rand' ? 'rand' : 'adv';
+    if (!Object.hasOwn(GAMES, body.game)) return [400, { error: 'Không có trò chơi này.' }];
+    const game = GAMES[body.game];
+    const mode = Object.hasOwn(game.modes, body.mode) ? String(body.mode) : Object.keys(game.modes)[0];
     const prev = games.get(body.prev);
-    if (prev && !prev.over && prev.weighs.length) finish(prev, 'abandoned', null, prev.mode === 'rand' ? prev.h.id : null);
-    if (prev) games.delete(body.prev);
+    if (prev) { abandon(prev); games.delete(body.prev); }
     if (games.size >= MAX_GAMES) sweep();
     if (games.size >= MAX_GAMES) return [503, { error: 'Server đang quá tải, thử lại sau.' }];
-    const id = crypto.randomUUID();
-    games.set(id, { id, name, mode, ip, h: pick(HYPS), cands: HYPS.slice(), weighs: [], over: false, startedAt: Date.now(), touched: Date.now() });
-    return [200, { id }];
+    const id = crypto.randomUUID(), s = game.start(mode);
+    games.set(id, { id, game: body.game, name, mode, ip, s, over: false, startedAt: Date.now(), touched: Date.now() });
+    return [200, { id, ...(game.view ? game.view(s) : {}) }];
   },
-  'POST /api/weigh'(body) {
+  // One move in a running game: body.type names one of the game's actions.
+  'POST /api/act'(body) {
     const g = games.get(body.id);
     if (!g || g.over) return [404, { error: 'Ván này đã kết thúc. Bấm “Ván mới”.' }];
-    if (g.weighs.length >= 3) return [400, { error: 'Bạn đã dùng hết 3 lần cân.' }];
-    const { L, R } = body;
-    if (!validPans(L, R)) return [400, { error: 'Hai đĩa phải có số đồng bằng nhau và không trùng đồng.' }];
-    let o;
-    if (g.mode === 'rand') o = weigh(L, R, g.h);
-    else {
-      // Adversary: answer with the outcome that keeps the most possibilities alive.
-      const groups = { gt: [], eq: [], lt: [] };
-      g.cands.forEach(h => groups[weigh(L, R, h)].push(h));
-      const best = Math.max(...Object.values(groups).map(a => a.length));
-      o = pick(Object.keys(groups).filter(k => groups[k].length === best));
-    }
-    g.cands = g.cands.filter(h => weigh(L, R, h) === o);
-    g.weighs.push({ L: L.slice(), R: R.slice(), o });
+    const actions = GAMES[g.game].actions;
+    if (!Object.hasOwn(actions, body.type)) return [400, { error: 'Thao tác không hợp lệ.' }];
+    const r = actions[body.type](g.s, body);
+    if (r.error) return [400, { error: r.error }];
     g.touched = Date.now();
-    return [200, { o, n: g.weighs.length }];
+    if (r.end) { finish(g, r.end); games.delete(g.id); }
+    return [200, r.reply];
   },
-  'POST /api/guess'(body) {
-    const g = games.get(body.id);
-    if (!g || g.over) return [404, { error: 'Ván này đã kết thúc. Bấm “Ván mới”.' }];
-    const c = body.c, t = body.t;
-    if (!Number.isInteger(c) || c < 1 || c > 12 || (t !== 'H' && t !== 'L')) return [400, { error: 'Đáp án không hợp lệ.' }];
-    const guess = c + t;
-    let fake;
-    if (g.mode === 'rand') fake = g.h;
-    else {
-      const others = g.cands.filter(h => h.id !== guess);
-      fake = others.length ? pick(others) : g.cands[0];
-    }
-    const win = fake.id === guess;
-    const consistentGuess = g.cands.some(h => h.id === guess);
-    const remaining = g.cands.length;
-    finish(g, win ? 'win' : 'lose', guess, fake.id);
-    games.delete(g.id);
-    return [200, { win, fake: { c: fake.c, t: fake.t }, consistentGuess, remaining }];
+  'GET /api/leaderboard'(_, ip, query) {
+    const id = query.get('game');
+    if (!Object.hasOwn(GAMES, id)) return [400, { error: 'Không có trò chơi này.' }];
+    const players = [...standings(id).values()].sort((a, b) => b.stars - a.stars || b.wins - a.wins || (b.wins / b.played) - (a.wins / a.played) || a.played - b.played);
+    const mine = results.filter(r => r.game === id);
+    const recent = mine.slice(-12).reverse().map(r => ({ name: r.name, mode: r.mode, outcome: r.outcome, star: GAMES[id].star(r), at: r.at, n: GAMES[id].steps(r) }));
+    return [200, { players: players.slice(0, 50), recent, total: mine.length }];
   },
-  'GET /api/leaderboard'() {
-    const by = new Map();
-    for (const r of results) {
-      const key = r.name.toLocaleLowerCase('vi');
-      const p = by.get(key) || { name: r.name, played: 0, wins: 0, hardWins: 0, last: r.at };
-      p.played++; if (r.outcome === 'win') { p.wins++; if (r.mode === 'adv') p.hardWins++; }
-      if (r.at >= p.last) { p.last = r.at; p.name = r.name; }
-      by.set(key, p);
+  // For the menu: how many people have played each game, and how this player is doing.
+  'GET /api/summary'(_, ip, query) {
+    const key = cleanName(query.get('name')).toLocaleLowerCase('vi');
+    const summary = {};
+    for (const id of GAME_IDS) {
+      const by = standings(id), me = key && by.get(key);
+      summary[id] = { players: by.size, me: me ? { played: me.played, wins: me.wins, stars: me.stars } : null };
     }
-    const players = [...by.values()].sort((a, b) => b.hardWins - a.hardWins || b.wins - a.wins || (b.wins / b.played) - (a.wins / a.played) || a.played - b.played);
-    const recent = results.slice(-12).reverse().map(r => ({ name: r.name, mode: r.mode, outcome: r.outcome, at: r.at, n: r.weighs.length }));
-    return [200, { players: players.slice(0, 50), recent, total: results.length }];
+    return [200, { games: summary }];
   }
 };
 
@@ -213,7 +224,7 @@ function tokenOk(given) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   const ip = clientIp(req);
-  const st = req.method === 'GET' && STATIC[url.pathname];
+  const st = req.method === 'GET' && Object.hasOwn(STATIC, url.pathname) && STATIC[url.pathname];
   if (st) return fs.readFile(path.join(ROOT, st[0]), (err, buf) => err ? send(res, 500, 'Lỗi đọc file', 'text/plain; charset=utf-8') : send(res, 200, buf, st[1]));
   if (req.method === 'GET' && url.pathname === '/healthz') return send(res, 200, 'ok', 'text/plain; charset=utf-8');
   const adminFile = req.method === 'GET' && { '/admin/results.csv': [CSV, 'text/csv; charset=utf-8'], '/admin/results.jsonl': [JSONL, 'application/x-ndjson; charset=utf-8'] }[url.pathname];
@@ -227,13 +238,14 @@ const server = http.createServer((req, res) => {
   if (url.pathname.startsWith('/api/') && limited(ip)) return send(res, 429, { error: 'Bạn thao tác quá nhanh, thử lại sau ít giây.' });
   if (req.method === 'GET' && url.pathname === '/api/extras') {
     const key = cleanName(url.searchParams.get('name')).toLocaleLowerCase('vi');
-    const losses = key ? results.filter(r => r.outcome === 'lose' && r.name.toLocaleLowerCase('vi') === key).length : 0;
+    const losses = key ? results.filter(r => r.game === 'coins' && r.outcome === 'lose' && r.name.toLocaleLowerCase('vi') === key).length : 0;
     if (losses <= UNLOCK_AFTER_LOSSES) { res.writeHead(204, { 'Cache-Control': 'no-store' }); return res.end(); }
     return fs.readFile(EXTRAS, (err, buf) => err ? send(res, 500, 'Lỗi đọc file', 'text/plain; charset=utf-8') : send(res, 200, buf, 'text/javascript; charset=utf-8'));
   }
-  const handler = api[`${req.method} ${url.pathname}`];
+  const route = `${req.method} ${url.pathname}`;
+  const handler = Object.hasOwn(api, route) && api[route];
   if (!handler) return send(res, 404, { error: 'Không tìm thấy' });
-  if (req.method === 'GET') return send(res, ...handler({}, ip));
+  if (req.method === 'GET') return send(res, ...handler({}, ip, url.searchParams));
   let raw = '';
   req.setEncoding('utf8');
   req.on('data', chunk => { raw += chunk; if (raw.length > 10000) req.destroy(); });
@@ -246,7 +258,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\nTrò chơi 12 đồng xu đang chạy.`);
+  console.log(`\nCâu đố kinh điển đang chạy (${GAME_IDS.length} trò chơi).`);
   console.log(`  Trên máy này:    http://localhost:${PORT}`);
   for (const list of Object.values(os.networkInterfaces())) {
     for (const a of list || []) if (a.family === 'IPv4' && !a.internal) console.log(`  Người cùng mạng: http://${a.address}:${PORT}`);
