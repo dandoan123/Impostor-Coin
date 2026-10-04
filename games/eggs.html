@@ -19,25 +19,28 @@
 <link rel="stylesheet" href="/app.css">
 <style>
 /* Only what this game needs; the shared look is in app.css. */
-.tower { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; margin: 14px 0 12px; padding: 10px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
-.floor { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 700 12px var(--f-mono); font-variant-numeric: tabular-nums; padding: 0; aspect-ratio: 1 / .8; border-radius: 6px; cursor: pointer; }
+.tower { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; margin: 14px 0 12px; padding: 10px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); }
+.floor { appearance: none; position: relative; border: 1px solid var(--edge); background: var(--surface); color: var(--ink); font: 700 12.5px var(--f-mono); font-variant-numeric: tabular-nums; padding: 0; aspect-ratio: 1 / .8; border-radius: 6px; cursor: pointer; transition: transform var(--t-fast) var(--ease-out), background-color var(--t-base); }
+.floor:active:not(:disabled) { transform: scale(.92); }
 .floor:hover:not(:disabled) { border-color: var(--ink); }
 .floor:disabled { cursor: default; }
 .floor[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
 .floor.safe { background: var(--ok-soft); border-color: transparent; }
-.floor.dead { background: var(--heavy-soft); border-color: transparent; }
+/* Not by colour alone: floors known to break are hatched, tested floors carry a tick or a cross. */
+.floor.dead { background: repeating-linear-gradient(135deg, var(--heavy-soft) 0 5px, var(--surface) 5px 8px); border-color: transparent; }
+.floor.hit-safe::after, .floor.hit-broke::after { position: absolute; top: 0; right: 2px; font-size: 9px; line-height: 1.3; }
+.floor.hit-safe::after { content: '✓'; }
+.floor.hit-broke::after { content: '✕'; }
 .floor.hit-safe { background: var(--ok); border-color: var(--ok); color: var(--surface); }
 .floor.hit-broke { background: var(--heavy); border-color: var(--heavy); color: var(--surface); }
 .floor.fresh { animation: land .5s ease-out; }
 @keyframes land { from { transform: scale(1.5); } to { transform: none; } }
-@media (prefers-reduced-motion: reduce) { .floor.fresh { animation: none; } }
-@media (max-width: 480px) { .tower { gap: 3px; padding: 6px; } .floor { font-size: 10.5px; border-radius: 5px; } }
+/* On a phone the floors are square so they are as tall as they are wide; the number box next to the button picks a floor exactly. */
+@media (max-width: 640px) { .tower { gap: 3px; padding: 6px; } .floor { aspect-ratio: 1; font-size: 12px; border-radius: 5px; } }
 .eggs { display: inline-flex; gap: 6px; align-items: center; }
 .egg { width: 17px; height: 22px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: radial-gradient(circle at 36% 30%, #FFFDF6 0 14%, #F1E3C6 55%, #CDB88F 100%); box-shadow: inset 0 0 0 1.5px var(--coin-edge); }
 .egg.broken { background: none; box-shadow: none; border: 1.5px dashed var(--muted); opacity: .6; }
 .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
-.answer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.answer .input { width: 6.5em; font-family: var(--f-mono); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -65,6 +68,8 @@
         </div>
         <div class="tower" id="eg-tower" role="group" aria-label="Tòa nhà 100 tầng, tầng 100 ở trên cùng"></div>
         <div class="row">
+          <label class="label" for="eg-floor">Tầng</label>
+          <input class="input num" id="eg-floor" type="number" inputmode="numeric" min="1" max="100" step="1" placeholder="1–100">
           <button class="btn primary big" id="eg-drop"></button>
           <span class="eggs" id="eg-eggs" aria-hidden="true"></span>
           <span class="note" id="eg-eggnote"></span>
@@ -83,14 +88,14 @@
           <p class="note">Tìm tầng cao nhất mà trứng rơi xuống không vỡ. Chọn một tầng trong tòa nhà rồi bấm thả. Bạn có 2 quả trứng và tối đa 14 lần thả.</p>
           <p class="score" id="eg-score"></p>
         </div>
-        <ol class="log" id="eg-log"></ol>
+        <ol class="log" id="eg-log" data-empty="Kết quả từng lần thả sẽ hiện ở đây."></ol>
         <div class="block">
           <label class="label" for="eg-answer">Đáp án: tầng cao nhất trứng không vỡ</label>
-          <div class="answer">
-            <input class="input" id="eg-answer" type="number" inputmode="numeric" min="0" max="100" step="1" placeholder="0–100">
-            <button class="btn primary" id="eg-submit">Chốt đáp án</button>
+          <div class="row">
+            <input class="input num" id="eg-answer" type="number" inputmode="numeric" min="0" max="100" step="1" placeholder="0–100" aria-describedby="eg-answer-help">
+            <button class="btn" id="eg-submit">Chốt đáp án</button>
           </div>
-          <p class="note small">Nhập 0 nếu trứng vỡ ngay từ tầng 1.</p>
+          <p class="note small" id="eg-answer-help">Nhập 0 nếu trứng vỡ ngay từ tầng 1.</p>
         </div>
         <div class="verdict" id="eg-verdict" hidden></div>
         <div class="block">
@@ -123,12 +128,18 @@ for (let row = FLOORS / 10 - 1; row >= 0; row--) {
   }
 }
 $('eg-pips').innerHTML = '<span></span>'.repeat(MAX_DROPS);
+// The number box and the grid pick the same floor.
+$('eg-floor').addEventListener('input', () => {
+  const f = Number($('eg-floor').value);
+  if (canDrop()) { eg.sel = Number.isInteger(f) && f >= 1 && f <= FLOORS ? f : null; egRender(); }
+});
+$('eg-floor').addEventListener('keydown', e => { if (e.key === 'Enter') egDrop(); });
 $('eg-drop').addEventListener('click', egDrop);
 $('eg-submit').addEventListener('click', egSubmit);
 $('eg-answer').addEventListener('input', egRender);
 $('eg-answer').addEventListener('keydown', e => { if (e.key === 'Enter') egSubmit(); });
-$('eg-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== eg.mode) { eg.mode = m; egNew(); } });
-$('eg-new').addEventListener('click', egNew);
+$('eg-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== eg.mode) egLeave('mode-' + m, () => { eg.mode = m; }); });
+$('eg-new').addEventListener('click', () => egLeave('new'));
 $('eg-hints').addEventListener('change', e => { eg.hints = e.target.checked; egRender(); });
 
 const canDrop = () => !eg.busy && !eg.over && !!eg.id && eg.eggs > 0 && eg.drops.length < MAX_DROPS;
@@ -142,6 +153,13 @@ function answer() {
   const v = $('eg-answer').value.trim(), t = Number(v);
   return v !== '' && Number.isInteger(t) && t >= 0 && t <= FLOORS ? t : null;
 }
+// A game left after its first drop is saved as abandoned, so leaving one takes a second press.
+function egLeave(key, change) {
+  if (eg.busy) return;
+  if (eg.id && !eg.over && eg.drops.length && !confirmed(key)) { eg.error = ABANDON_ASK; say(ABANDON_ASK); egRender(); return; }
+  if (change) change();
+  egNew();
+}
 async function egNew() {
   if (eg.busy) return;
   if (!player.name) { openGate(); return; }
@@ -149,7 +167,7 @@ async function egNew() {
   $('eg-answer').value = '';
   egRender();
   try { eg.id = (await startGame(eg.mode)).id; }
-  catch (e) { eg.error = errText(e); }
+  catch (e) { eg.error = errText(e); say(eg.error); }
   eg.busy = false; egRender();
 }
 async function egDrop() {
@@ -159,7 +177,8 @@ async function egDrop() {
   try {
     const r = await act('drop', { f });
     eg.drops.push({ f, broke: r.broke }); eg.eggs = r.eggs; eg.sel = null; eg.fresh = true;
-  } catch (e) { eg.error = errText(e); }
+    say(`Tầng ${f}: ${r.broke ? 'vỡ' : 'không vỡ'}. Còn ${r.eggs} quả trứng.`);
+  } catch (e) { eg.error = errText(e); say(eg.error); }
   eg.busy = false; egRender();
 }
 async function egSubmit() {
@@ -169,8 +188,9 @@ async function egSubmit() {
   try {
     eg.reveal = await act('guess', { t });
     eg.over = true; eg.sel = null;
+    say((eg.reveal.win ? 'Đúng. ' : 'Chưa đúng. ') + truthText(eg.reveal.truth).replace(/<[^>]+>/g, ''));
     loadBoard();
-  } catch (e) { eg.error = errText(e); }
+  } catch (e) { eg.error = errText(e); say(eg.error); }
   eg.busy = false; egRender();
 }
 const truthText = t => t === 0 ? 'Trứng vỡ ngay từ tầng 1.' : t === FLOORS ? 'Trứng không vỡ ở tầng nào cả.' : `Tầng cao nhất trứng không vỡ là <b>${t}</b>.`;
@@ -195,6 +215,9 @@ function egRender() {
   pill.className = 'pill' + (last && last.broke ? ' tilt' : '');
   $('eg-eggs').innerHTML = Array.from({ length: EGGS }, (_, i) => `<span class="egg${i < eg.eggs ? '' : ' broken'}"></span>`).join('');
   $('eg-eggnote').textContent = eg.eggs ? `Còn ${eg.eggs} quả trứng` : 'Hết trứng';
+  $('eg-floor').disabled = !open;
+  // Leave the box alone while the player is typing in it.
+  if (document.activeElement !== $('eg-floor')) $('eg-floor').value = eg.sel || '';
   $('eg-drop').disabled = !open || !eg.sel;
   $('eg-drop').textContent = eg.busy && eg.id && !eg.over ? 'Đang thả…' : !eg.eggs ? 'Hết trứng' : n >= MAX_DROPS ? 'Hết lượt thả' : eg.sel ? `Thả trứng từ tầng ${eg.sel}` : 'Chọn một tầng để thả';
   $('eg-warn').textContent = eg.error || (eg.over ? '' : !eg.eggs ? 'Cả hai quả trứng đã vỡ. Hãy chốt đáp án.'
@@ -208,6 +231,8 @@ function egRender() {
   }).join('');
   $('eg-answer').disabled = eg.over;
   $('eg-submit').disabled = eg.busy || !eg.id || eg.over || answer() === null;
+  // One main action at a time: dropping first, the answer once no drop is left.
+  $('eg-submit').classList.toggle('primary', !eg.eggs || n >= MAX_DROPS);
   setSeg($('eg-mode'), 'm', eg.mode);
   $('eg-modenote').textContent = eg.mode === 'adv'
     ? 'Khó: máy chưa chọn tầng trước. Mỗi lần thả, nó trả về kết quả khiến bạn phải thả thêm nhiều lần nhất, nên đoán mò sẽ thua. Chỉ chiến lược đúng mới thắng.'

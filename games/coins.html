@@ -34,7 +34,7 @@
 .coin.fake-H .face { stroke: var(--heavy); stroke-width: 4.5; }
 .coin.fake-L .face { stroke: var(--light); stroke-width: 4.5; }
 .strip { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
-@media (max-width: 560px) { .strip { grid-template-columns: repeat(6, minmax(0, 1fr)); row-gap: 10px; } }
+@media (max-width: 640px) { .strip { grid-template-columns: repeat(6, minmax(0, 1fr)); row-gap: 10px; } }
 .chip { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .chip .coinface { width: 34px; height: 34px; font-size: 13px; transition: opacity .3s, filter .3s; }
 .chip .mark { font: 700 12px var(--f-mono); min-height: 16px; color: var(--muted); }
@@ -42,7 +42,9 @@
 .chip.st-H .mark { color: var(--heavy); }
 .chip.st-L .mark { color: var(--light); }
 .chip.is-secret .coinface { box-shadow: inset 0 0 0 2px var(--coin-edge), 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); }
-.picker { display: grid; grid-template-columns: repeat(6, max-content); gap: 8px; }
+/* The guess coins are 32px with 6px of padding around: 44px to tap. */
+.picker { display: grid; grid-template-columns: repeat(6, max-content); gap: 0; margin: -4px -6px; }
+.picker .coinbtn { padding: 6px; }
 .answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .answers .btn { padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .answers .btn small { font: 700 12px var(--f-mono); color: var(--muted); }
@@ -55,12 +57,13 @@
 .hyp.L { background: var(--light-soft); color: var(--light); }
 .verdict .big .H { color: var(--heavy); } .verdict .big .L { color: var(--light); }
 .pansel { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 6px; }
-.tray { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px 6px; margin: 12px 0 8px; padding: 12px 8px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
-@media (max-width: 560px) { .tray { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.tray { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px 6px; margin: 12px 0 8px; padding: 12px 8px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); }
+/* Twelve 44px coins need a wide card; below that they sit in two rows of six. */
+@media (max-width: 1080px) { .tray { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .tray .slot { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.tray .where { font: 700 10.5px var(--f-mono); color: var(--muted); letter-spacing: .04em; min-height: 14px; }
+.tray .where { font: 700 11px var(--f-mono); color: var(--muted); letter-spacing: .04em; min-height: 14px; }
 .tray .where.L, .tray .where.R { color: var(--brass); }
-.coinbtn.onpan .coinface { background: transparent; box-shadow: none; border: 2px dashed var(--line); color: var(--muted); }
+.coinbtn.onpan .coinface { background: transparent; box-shadow: none; border: 2px dashed var(--edge); color: var(--muted); }
 .coin.clickable { cursor: pointer; }
 .coin.clickable:hover .face, .coin.clickable:focus-visible .face { stroke: var(--ink); stroke-width: 3; }
 .coin.clickable:focus { outline: none; }
@@ -70,9 +73,9 @@
 .idea h3 { margin: 0 0 6px; font-family: var(--f-display); font-size: 19px; font-weight: 700; }
 .idea p { margin: 0; color: var(--muted); font-size: 14.5px; }
 .idea .n { font: 700 13px var(--f-mono); color: var(--brass); display: block; margin-bottom: 4px; }
-@media (max-width: 820px) { .idea { grid-template-columns: 1fr; gap: 16px; } }
+@media (max-width: 880px) { .idea { grid-template-columns: 1fr; gap: 16px; } }
 .wcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.wcard .tagline { font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.wcard .tagline { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .root-card { max-width: 640px; }
 .branches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
 @media (max-width: 960px) { .branches { grid-template-columns: 1fr; } }
@@ -133,13 +136,13 @@ td.okc { color: var(--ok); font-weight: 700; }
           <p class="note">Trong 12 đồng có một đồng giả. Dùng tối đa 3 lần cân để tìm ra nó và cho biết nó nặng hơn hay nhẹ hơn.</p>
           <p class="score" id="pl-score"></p>
         </div>
-        <ol class="log" id="pl-log"></ol>
+        <ol class="log" id="pl-log" data-empty="Kết quả từng lần cân sẽ hiện ở đây."></ol>
         <div class="block">
           <p class="label">Đáp án của bạn</p>
           <div class="picker" id="pl-guess"></div>
           <div class="row">
             <div class="seg" id="pl-gtype"><button data-t="H">Nặng hơn</button><button data-t="L">Nhẹ hơn</button></div>
-            <button class="btn primary" id="pl-submit">Chốt đáp án</button>
+            <button class="btn" id="pl-submit">Chốt đáp án</button>
           </div>
         </div>
         <div class="verdict" id="pl-verdict" hidden></div>
@@ -322,13 +325,20 @@ for (let c = 1; c <= 12; c++) {
 $('pl-active').addEventListener('click', e => { const p = e.target.closest('button')?.dataset.p; if (p) { pl.active = p; plRender(); } });
 const guessBtns = coinButtons($('pl-guess'), c => { if (!pl.over) { pl.gc = c; plRender(); } }, true);
 $('pl-gtype').addEventListener('click', e => { const t = e.target.closest('button')?.dataset.t; if (t && !pl.over) { pl.gt = t; plRender(); } });
-$('pl-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== pl.mode) { pl.mode = m; plNew(); } });
-$('pl-new').addEventListener('click', plNew);
+$('pl-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== pl.mode) plLeave('mode-' + m, () => { pl.mode = m; }); });
+$('pl-new').addEventListener('click', () => plLeave('new'));
 $('pl-hints').addEventListener('change', e => { pl.hints = e.target.checked; plRender(); });
 $('pl-clear').addEventListener('click', () => { if (pl.over || pl.busy) return; for (let c = 1; c <= 12; c++) pl.pos[c] = 'tray'; pl.fresh = false; plRender(); });
 $('pl-weigh').addEventListener('click', plWeigh);
 $('pl-submit').addEventListener('click', plSubmit);
 const side = s => Object.keys(pl.pos).map(Number).filter(c => pl.pos[c] === s);
+// A game left after its first weighing is saved as abandoned, so leaving one takes a second press.
+function plLeave(key, change) {
+  if (pl.busy) return;
+  if (pl.id && !pl.over && pl.weighs.length && !confirmed(key)) { pl.error = ABANDON_ASK; say(ABANDON_ASK); plRender(); return; }
+  if (change) change();
+  plNew();
+}
 async function plNew() {
   if (pl.busy) return;
   if (!player.name) { openGate(); return; }
@@ -336,15 +346,15 @@ async function plNew() {
   Object.assign(pl, { weighs: [], id: null, over: false, gc: null, gt: 'H', fresh: false, reveal: null, busy: true, error: '' });
   plRender();
   try { pl.id = (await startGame(pl.mode)).id; }
-  catch (e) { pl.error = errText(e); }
+  catch (e) { pl.error = errText(e); say(pl.error); }
   pl.busy = false; plRender();
 }
 async function plWeigh() {
   const L = side('L'), R = side('R');
   if (pl.busy || !pl.id || pl.over || pl.weighs.length >= 3 || !L.length || L.length !== R.length) return;
   pl.busy = true; pl.error = ''; plRender();
-  try { const { o } = await act('weigh', { L, R }); pl.weighs.push({ L, R, o }); pl.fresh = true; }
-  catch (e) { pl.error = errText(e); }
+  try { const { o } = await act('weigh', { L, R }); pl.weighs.push({ L, R, o }); pl.fresh = true; say(`Lần cân ${pl.weighs.length}: ${OUT[o].text}.`); }
+  catch (e) { pl.error = errText(e); say(pl.error); }
   pl.busy = false; plRender();
 }
 async function plSubmit() {
@@ -354,9 +364,10 @@ async function plSubmit() {
     const r = await act('guess', { c: pl.gc, t: pl.gt });
     pl.over = true;
     pl.reveal = { fake: { c: r.fake.c, t: r.fake.t, id: r.fake.c + r.fake.t }, win: r.win, consistentGuess: r.consistentGuess, remaining: r.remaining };
+    say((r.win ? 'Đúng. ' : 'Chưa đúng. ') + `Đồng ${r.fake.c} là giả, ${r.fake.t === 'H' ? 'nặng hơn' : 'nhẹ hơn'}.`);
     loadBoard();
     if (!r.win) loadExtras();
-  } catch (e) { pl.error = errText(e); }
+  } catch (e) { pl.error = errText(e); say(pl.error); }
   pl.busy = false; plRender();
 }
 function plRender() {
@@ -387,6 +398,8 @@ function plRender() {
   setSeg($('pl-gtype'), 't', pl.gt);
   setSeg($('pl-mode'), 'm', pl.mode);
   $('pl-submit').disabled = pl.busy || !pl.id || pl.over || !pl.gc;
+  // One main action at a time: weighing first, the answer once the weighings are used up.
+  $('pl-submit').classList.toggle('primary', n >= 3);
   $('pl-modenote').textContent = pl.mode === 'adv'
     ? 'Khó: máy chưa chọn đồng giả trước. Mỗi lần cân nó trả về kết quả giữ lại nhiều khả năng nhất, nên đoán mò sẽ thua. Chỉ chiến lược đúng mới thắng.'
     : 'Ngẫu nhiên: đồng giả được chọn sẵn từ đầu ván. Đổi chế độ hoặc bấm “Ván mới” giữa chừng thì ván đang chơi được ghi là bỏ dở.';

@@ -19,17 +19,17 @@
 <link rel="stylesheet" href="/app.css">
 <style>
 /* Only what this game needs; the shared look is in app.css. */
-.jugs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0 12px; padding: 16px 12px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.jugs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0 12px; padding: 16px 12px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); }
 .jug { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
 /* Both glasses stand on the same line; --h is the glass height (taller = holds more), --fill how full it is (0..1). */
 .jug .stand { height: 200px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
 .glass { position: relative; width: min(116px, 72%); height: var(--h); border: 3px solid var(--metal); border-top: 0; border-radius: 0 0 16px 16px; overflow: hidden; background: var(--surface); }
 .glass.done { border-color: var(--ok); }
-.water { position: absolute; inset: auto 0 0 0; height: calc(var(--fill) * 100%); background: var(--light); opacity: .8; transition: height .45s ease; }
-@media (prefers-reduced-motion: reduce) { .water { transition: none; } }
+/* The water is one full-height layer that slides up and down, so filling animates without re-laying out the glass. */
+.water { position: absolute; inset: 0; background: var(--light); opacity: .8; transform-origin: bottom; transform: scaleY(var(--fill)); transition: transform var(--t-slow) var(--ease-out); }
 .jug .amount { font: 700 22px var(--f-mono); font-variant-numeric: tabular-nums; }
 .jug .amount small { font: 500 13px var(--f-body); color: var(--muted); }
-.jug .acts { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 210px; }
+.jug .acts { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 210px; }
 .jug .acts .btn { padding: 8px 10px; }
 </style>
 </head>
@@ -68,7 +68,7 @@
           <p class="note" id="jg-task"></p>
           <p class="score" id="jg-score"></p>
         </div>
-        <ol class="log" id="jg-log"></ol>
+        <ol class="log" id="jg-log" data-empty="Các bước đong sẽ hiện ở đây."></ol>
         <div class="verdict" id="jg-verdict" hidden></div>
         <div class="block">
           <p class="label">Mức độ</p>
@@ -115,13 +115,14 @@ async function jgNew() {
   Object.assign(jg, { id: null, st: [0, 0], moves: [], solved: false, result: null, busy: true, error: '' });
   jgRender();
   try { const r = await startGame(jg.mode); Object.assign(jg, { id: r.id, caps: r.caps, target: r.target, best: r.best }); }
-  catch (e) { jg.error = errText(e); }
+  catch (e) { jg.error = errText(e); say(jg.error); }
   jg.busy = false; jgRender();
 }
 const changes = m => jugs.apply(jg.st, jg.caps, m).join() !== jg.st.join();
 function jgMove(m) {
   if (jg.busy || !jg.id || jg.solved || !changes(m)) return;
   jg.st = jugs.apply(jg.st, jg.caps, m); jg.moves.push(m);
+  say(`${TEXT[m]}. Bình A ${jg.st[0]} lít, bình B ${jg.st[1]} lít.`);
   if (jugs.solved(jg.st, jg.target)) { jg.solved = true; jgSubmit(); return; }
   jgRender();
 }
@@ -129,8 +130,12 @@ function jgMove(m) {
 async function jgSubmit() {
   if (jg.busy || !jg.solved || jg.result) return;
   jg.busy = true; jg.error = ''; jgRender();
-  try { jg.result = await act('finish', { moves: jg.moves }); loadBoard(); }
-  catch (e) { jg.error = errText(e); }
+  try {
+    jg.result = await act('finish', { moves: jg.moves });
+    say(`Đong được ${jg.target} lít sau ${jg.result.n} bước. Số bước ít nhất là ${jg.result.best}.`);
+    loadBoard();
+  }
+  catch (e) { jg.error = errText(e); say(jg.error); }
   jg.busy = false; jgRender();
 }
 function jgRender() {

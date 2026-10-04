@@ -1,3 +1,5 @@
 node_modules/
 # Player results (names, IP addresses) stay on this machine
 data/
+# Claude Code skill installed locally (third-party, 3 MB of reference data)
+.claude/skills/ui-ux-pro-max/

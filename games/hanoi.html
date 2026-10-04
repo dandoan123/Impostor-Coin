@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="/app.css">
 <style>
 /* Only what this game needs; the shared look is in app.css. */
-.pegs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; padding: 12px 10px 8px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.pegs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; padding: 12px 10px 8px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); }
 /* A peg is one big button: the discs (top one first), then the base and the letter. --discs is how many discs are in play. */
 .peg { appearance: none; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; position: relative; border-radius: 10px;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: calc(var(--discs) * 24px + 76px); }
@@ -28,11 +28,10 @@
 .peg .base { width: 96%; height: 8px; border-radius: 4px; background: var(--metal-dark); flex: none; }
 .peg .name { height: 28px; line-height: 28px; font: 700 14px/28px var(--f-mono); color: var(--muted); flex: none; }
 .disc { position: relative; flex: none; height: 22px; margin-bottom: 2px; border-radius: 11px; display: grid; place-items: center; font: 700 11.5px var(--f-mono); color: var(--coin-ink);
-  background: linear-gradient(var(--coin-hi), var(--coin) 45%, var(--coin-edge)); box-shadow: inset 0 0 0 1.5px var(--coin-edge); transition: transform .15s; }
+  background: linear-gradient(var(--coin-hi), var(--coin) 45%, var(--coin-edge)); box-shadow: inset 0 0 0 1.5px var(--coin-edge); transition: transform var(--t-base) var(--ease-spring); }
 .peg:hover:not(:disabled) .rod + .disc { transform: translateY(-3px); }
 .peg.from .rod + .disc { transform: translateY(-16px); box-shadow: inset 0 0 0 1.5px var(--coin-edge), 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
 .peg.goal .name { color: var(--brass); }
-@media (prefers-reduced-motion: reduce) { .disc { transition: none; } }
 @media (max-width: 480px) { .pegs { gap: 4px; padding-inline: 6px; } .disc { font-size: 10.5px; } }
 </style>
 </head>
@@ -108,7 +107,7 @@ async function hnNew() {
   Object.assign(hn, { id: null, discs, pegs: hanoi.start(discs), moves: '', from: null, solved: false, result: null, busy: true, error: '' });
   hnRender();
   try { hn.id = (await startGame(hn.mode)).id; }
-  catch (e) { hn.error = errText(e); }
+  catch (e) { hn.error = errText(e); say(hn.error); }
   hn.busy = false; hnRender();
 }
 function hnPeg(i) {
@@ -119,15 +118,19 @@ function hnPeg(i) {
   else if (hanoi.can(hn.pegs, hn.from, i)) {
     hanoi.move(hn.pegs, hn.from, i); hn.moves += '' + hn.from + i; hn.from = null;
     if (hanoi.solved(hn.pegs)) { hn.solved = true; hnSubmit(); return; }
-  } else { hn.error = 'Không được đặt đĩa lớn lên đĩa nhỏ.'; hn.from = null; }
+  } else { hn.error = 'Không được đặt đĩa lớn lên đĩa nhỏ.'; hn.from = null; say(hn.error); }
   hnRender();
 }
 // The finished game goes to the server, which replays the moves and saves the result.
 async function hnSubmit() {
   if (hn.busy || !hn.solved || hn.result) return;
   hn.busy = true; hn.error = ''; hnRender();
-  try { hn.result = await act('finish', { moves: hn.moves }); loadBoard(); }
-  catch (e) { hn.error = errText(e); }
+  try {
+    hn.result = await act('finish', { moves: hn.moves });
+    say(`Xong trong ${hn.result.n} bước. Số bước ít nhất là ${hn.result.best}.`);
+    loadBoard();
+  }
+  catch (e) { hn.error = errText(e); say(hn.error); }
   hn.busy = false; hnRender();
 }
 function hnRender() {

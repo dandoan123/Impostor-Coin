@@ -28,11 +28,13 @@
 
 .menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
 @media (max-width: 960px) { .menu { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 620px) { .menu { grid-template-columns: 1fr; gap: 14px; } }
-.game { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
-.game:hover { border-color: var(--ink); transform: translateY(-2px); }
-.game:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { .game { transition: none; } .game:hover { transform: none; } }
+@media (max-width: 640px) { .menu { grid-template-columns: 1fr; gap: 14px; } }
+/* A card rests on the page, lifts under the pointer and sinks when pressed; the six cards arrive one after another. */
+.game { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; color: inherit; text-decoration: none; box-shadow: var(--shadow-card);
+  transition: border-color var(--t-base), transform var(--t-base) var(--ease-out), box-shadow var(--t-base); animation: rise var(--t-slow) var(--ease-out) backwards; }
+.game:nth-child(2) { animation-delay: 40ms; } .game:nth-child(3) { animation-delay: 80ms; } .game:nth-child(4) { animation-delay: 120ms; } .game:nth-child(5) { animation-delay: 160ms; } .game:nth-child(6) { animation-delay: 200ms; }
+.game:hover { border-color: var(--edge); transform: translateY(-3px); box-shadow: var(--shadow-raised); }
+.game:active { transform: translateY(0) scale(.99); box-shadow: var(--shadow-card); }
 .game .art { display: block; width: 100%; height: auto; background: var(--bg); border-bottom: 1px solid var(--line); }
 .game .text { display: flex; flex-direction: column; gap: 6px; flex: 1; padding: 14px 16px 14px; }
 .game .eyebrow { margin: 0; }
@@ -60,7 +62,7 @@
 
 .soon { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 28px; margin: 14px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 @media (max-width: 960px) { .soon { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 620px) { .soon { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .soon { grid-template-columns: 1fr; } }
 .soon li { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .soon b { display: block; font-weight: 600; }
 .soon span { color: var(--muted); font-size: 14px; }
@@ -85,7 +87,7 @@
     </div>
   </header>
 
-  <main class="menu">
+  <main class="menu" id="games">
     <a class="game" href="/coins" data-game="coins">
       <svg class="art" viewBox="0 0 320 140" aria-hidden="true">
         <rect class="metal" x="130" y="124" width="60" height="8" rx="4"/><rect class="metal" x="157" y="34" width="6" height="92" rx="2"/>

@@ -30,12 +30,37 @@ async function startGame(mode) {
 }
 const act = (type, data) => api('/api/act', { id: session.id, type, ...data });
 
+// Tells screen-reader users what just happened (a weighing result, the machine's move, the verdict).
+let said = '';
+function say(text) {
+  if (text === said) return;
+  said = text;
+  $('live').textContent = text;
+}
+// Asks for a second press before a game in progress is thrown away: true only when the same thing was pressed twice within 5 seconds.
+const ABANDON_ASK = 'Ván đang chơi sẽ được ghi là bỏ dở. Bấm lần nữa để xác nhận.';
+let armed = { key: '', at: 0 };
+function confirmed(key) {
+  const ok = armed.key === key && Date.now() - armed.at < 5000;
+  armed = ok ? { key: '', at: 0 } : { key, at: Date.now() };
+  return ok;
+}
+
+// While the name gate is open the page behind it cannot be reached by keyboard or screen reader.
+let gateOpener = null;
 function openGate() {
+  gateOpener = document.activeElement;
   $('gate').hidden = false;
+  document.querySelectorAll('.wrap, .skip').forEach(el => { el.inert = true; });
   $('gate-name').value = player.name;
   $('gate-warn').textContent = '';
   $('gate-cancel').hidden = !player.name && !!page.game;
   setTimeout(() => $('gate-name').focus(), 30);
+}
+function closeGate() {
+  $('gate').hidden = true;
+  document.querySelectorAll('.wrap, .skip').forEach(el => { el.inert = false; });
+  if (gateOpener && gateOpener.isConnected) gateOpener.focus();
 }
 function showPlayer() {
   $('player-name').textContent = player.name || 'chưa đặt tên';
@@ -97,9 +122,20 @@ function showTab(name) {
 /* ---------- page start ---------- */
 const PLAYERBAR = '<div class="playerbar"><button class="linkbtn" id="install" type="button" hidden>Cài ứng dụng</button><span>Người chơi: <b id="player-name"></b></span><button class="linkbtn" id="player-change" type="button"></button></div>';
 const INSTALL_HINT = '<p class="install-hint" id="install-hint" hidden>Trên iPhone/iPad: mở trang bằng Safari, bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên), rồi chọn <b>Thêm vào MH chính</b>.</p>';
+// Every game, in menu order; a game page lists the others at its foot.
+const GAME_LIST = [['coins', 'Bài toán 12 đồng xu'], ['eggs', 'Hai quả trứng, 100 tầng'], ['nim', 'Nim'], ['bridge', 'Qua cầu trong đêm'], ['jugs', 'Hai bình, một vòi nước'], ['hanoi', 'Tháp Hà Nội']];
 function initPage(cfg) {
   page = cfg;
+  document.body.dataset.page = cfg.game ? 'game' : 'menu';
+  // For keyboard and screen-reader users: a link that jumps past the introduction, and a place where say() speaks.
+  document.body.insertAdjacentHTML('afterbegin', `<a class="skip" id="skip" href="#">${cfg.game ? 'Đến phần chơi' : 'Đến danh sách trò chơi'}</a>`);
+  $('skip').addEventListener('click', e => {
+    e.preventDefault();
+    const main = document.querySelector('[role="tabpanel"]:not([hidden])') || document.querySelector('main');
+    main.tabIndex = -1; main.focus(); main.scrollIntoView();
+  });
   document.body.insertAdjacentHTML('beforeend', `
+<p class="sr-only" id="live" role="status" aria-live="polite"></p>
 <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gate-title" hidden>
   <form class="gate-card" id="gate-form" novalidate>
     ${cfg.gateArt || ''}
@@ -107,8 +143,8 @@ function initPage(cfg) {
     <h2 id="gate-title">${esc(cfg.title)}</h2>
     <p class="note">Nhập tên để vào chơi. Kết quả mỗi ván được ghi lại kèm tên của bạn và hiện trên bảng xếp hạng.</p>
     <label class="label" for="gate-name">Tên của bạn</label>
-    <input class="input" id="gate-name" maxlength="30" autocomplete="nickname" placeholder="Ví dụ: Minh Anh">
-    <p class="warn" id="gate-warn"></p>
+    <input class="input" id="gate-name" maxlength="30" autocomplete="nickname" placeholder="Ví dụ: Minh Anh" aria-describedby="gate-warn">
+    <p class="warn" id="gate-warn" role="alert"></p>
     <button class="btn primary big" type="submit">${cfg.game ? 'Vào chơi' : 'Lưu tên'}</button>
     <button class="btn" id="gate-cancel" type="button">Để sau</button>
   </form>
@@ -119,7 +155,12 @@ function initPage(cfg) {
     top.insertAdjacentHTML('beforeend', PLAYERBAR);
     top.insertAdjacentHTML('afterend', INSTALL_HINT);
   } else {
-    // Game pages get the way back to the menu, the tab bar (with the player in it) and the leaderboard panel.
+    // Game pages get the way back to the menu, the tab bar (with the player in it), the leaderboard panel and the list of other games.
+    document.querySelector('.wrap').insertAdjacentHTML('beforeend', `
+  <nav class="more" aria-label="Trò chơi khác">
+    <p class="label">Trò chơi khác</p>
+    <div class="more-list">${GAME_LIST.filter(([id]) => id !== cfg.game).map(([id, title]) => `<a class="btn" href="/${id}">${esc(title)}</a>`).join('')}</div>
+  </nav>`);
     const hero = document.querySelector('.hero');
     hero.insertAdjacentHTML('beforebegin', '<a class="back" href="/">← Tất cả trò chơi</a>');
     hero.insertAdjacentHTML('afterend', `
@@ -166,12 +207,14 @@ function initPage(cfg) {
     const changed = name !== player.name;
     player.name = name;
     try { localStorage.setItem('coins12-name', name); } catch (_) {}
-    $('gate').hidden = true;
+    closeGate();
     showPlayer();
     cfg.onPlayer(changed);
     loadBoard();
   });
-  $('gate-cancel').addEventListener('click', () => { $('gate').hidden = true; });
+  $('gate-cancel').addEventListener('click', closeGate);
+  // Escape leaves the gate whenever leaving is allowed (the "Để sau" button is showing).
+  $('gate').addEventListener('keydown', e => { if (e.key === 'Escape' && !$('gate-cancel').hidden) closeGate(); });
   $('player-change').addEventListener('click', openGate);
   showPlayer();
   // A game needs a name before it starts; the menu can be browsed without one.

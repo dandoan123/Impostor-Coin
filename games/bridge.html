@@ -20,29 +20,29 @@
 <style>
 /* Only what this game needs; the shared look is in app.css. */
 .timebar { height: 10px; margin: 12px 0 0; border-radius: 5px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
-.timebar i { display: block; height: 100%; width: calc(var(--used) * 100%); background: var(--brass); transition: width .4s ease; }
+.timebar i { display: block; height: 100%; background: var(--brass); transform-origin: left; transform: scaleX(var(--used)); transition: transform var(--t-slow) var(--ease-out); }
 .timebar.over i { background: var(--heavy); }
-@media (prefers-reduced-motion: reduce) { .timebar i { transition: none; } }
 /* near bank | bridge | far bank */
 .scene { display: grid; grid-template-columns: minmax(0, 1fr) minmax(44px, .42fr) minmax(0, 1fr); margin: 12px 0; align-items: stretch; }
-.bank { min-height: 190px; padding: 10px 8px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.bank { min-height: 190px; padding: 10px 8px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); display: flex; flex-direction: column; gap: 10px; transition: background-color var(--t-base); }
 .bank.lit { background: var(--brass-soft); border-color: transparent; }
-.bank .where { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; }
-.bank .torch { margin: 0; min-height: 1.4em; font-size: 12.5px; font-weight: 600; text-align: center; color: var(--ink); }
+.bank .where { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; }
+.bank .torch { margin: 0; min-height: 1.4em; font-size: 13px; font-weight: 600; text-align: center; color: var(--ink); }
 .bank .torch::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brass) 30%, transparent); }
 .bank:not(.lit) .torch { visibility: hidden; }
 .bank .people { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-content: flex-start; flex: 1; }
 .span { position: relative; align-self: center; height: 34px; border-block: 3px solid var(--metal); background: repeating-linear-gradient(90deg, var(--metal-dark) 0 2px, transparent 2px 10px); opacity: .8; }
 /* a walker: a little figure with the minutes written on it */
-.walker { appearance: none; border: 0; background: none; padding: 0; cursor: pointer; position: relative; width: 46px; height: 64px; border-radius: 8px; transition: transform .15s; }
-.walker svg { display: block; width: 100%; height: 100%; fill: var(--metal-dark); }
+.walker { appearance: none; border: 0; background: none; padding: 0; cursor: pointer; position: relative; width: 46px; height: 64px; border-radius: 8px; transition: transform var(--t-base) var(--ease-spring); }
+.walker svg { display: block; width: 100%; height: 100%; fill: var(--metal-dark); transition: fill var(--t-fast); }
 .walker b { position: absolute; left: 0; right: 0; bottom: 9px; text-align: center; font: 700 15px var(--f-mono); color: var(--surface); }
 .walker:hover:not(:disabled) { transform: translateY(-2px); }
+.walker:active:not(:disabled) { transform: scale(.94); }
 .walker:disabled { cursor: default; }
 .walker[aria-pressed="true"] { transform: translateY(-6px); }
 .walker[aria-pressed="true"] svg { fill: var(--brass); }
 .bank:not(.lit) .walker svg { opacity: .55; }
-@media (max-width: 480px) { .walker { width: 38px; height: 54px; } .walker b { font-size: 13px; bottom: 7px; } .bank { padding-inline: 4px; } .bank .people { gap: 4px; } }
+@media (max-width: 480px) { .walker { width: 44px; height: 61px; } .walker b { font-size: 14px; bottom: 8px; } .bank { padding-inline: 4px; } .bank .people { gap: 4px; } }
 </style>
 </head>
 <body>
@@ -86,7 +86,7 @@
           <p class="note" id="br-task"></p>
           <p class="score" id="br-score"></p>
         </div>
-        <ol class="log" id="br-log"></ol>
+        <ol class="log" id="br-log" data-empty="Các lượt qua cầu sẽ hiện ở đây."></ol>
         <div class="verdict" id="br-verdict" hidden></div>
         <div class="block">
           <p class="label">Mức độ</p>
@@ -118,7 +118,7 @@ document.querySelector('.scene').addEventListener('click', e => {
   br.error = '';
   if (br.sel.includes(i)) br.sel = br.sel.filter(x => x !== i);
   else if (br.sel.length < 2) br.sel.push(i);
-  else br.error = 'Cầu chỉ chịu được hai người mỗi lượt.';
+  else { br.error = 'Cầu chỉ chịu được hai người mỗi lượt.'; say(br.error); }
   brRender();
   document.querySelector(`.walker[data-i="${i}"]`)?.focus();
 });
@@ -134,12 +134,13 @@ async function brNew() {
   Object.assign(br, { id: null, st: bridge.start(br.times.length), sel: [], trips: [], over: null, result: null, busy: true, error: '' });
   brRender();
   try { const r = await startGame(br.mode); Object.assign(br, { id: r.id, times: r.times, limit: r.limit, st: bridge.start(r.times.length) }); }
-  catch (e) { br.error = errText(e); }
+  catch (e) { br.error = errText(e); say(br.error); }
   br.busy = false; brRender();
 }
 function brGo() {
   if (br.busy || !br.id || br.over || !br.sel.length) return;
   const who = br.sel.slice().sort((a, b) => a - b);
+  say(`${who.length > 1 ? 'Hai người' : 'Người'} ${names(who)} phút ${br.st.torch ? 'quay lại' : 'qua cầu'}, mất ${cost(who)} phút.`);
   bridge.cross(br.st, br.times, who); br.trips.push(who); br.sel = []; br.error = '';
   if (br.st.time > br.limit) br.over = 'lose';
   else if (bridge.done(br.st)) br.over = 'win';
@@ -149,8 +150,12 @@ function brGo() {
 async function brSubmit() {
   if (br.busy || !br.over || br.result) return;
   br.busy = true; br.error = ''; brRender();
-  try { br.result = await act('finish', { trips: br.trips }); loadBoard(); }
-  catch (e) { br.error = errText(e); }
+  try {
+    br.result = await act('finish', { trips: br.trips });
+    say(br.result.outcome === 'win' ? `Cả nhóm qua cầu trong ${br.result.time} phút. Kịp giờ.` : `Đã mất ${br.result.time} phút. Đèn pin đã tắt.`);
+    loadBoard();
+  }
+  catch (e) { br.error = errText(e); say(br.error); }
   br.busy = false; brRender();
 }
 function brRender() {

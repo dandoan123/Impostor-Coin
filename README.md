@@ -90,7 +90,7 @@ PWA chỉ cài được khi trang chạy qua HTTPS (hoặc `localhost`).
 
 1. Viết `games/<tên>.js`: logic trên server, gồm `label`, `modes`, `start`, `actions`, `abandon`, `star`, `steps`, `csv`. Xem `games/eggs.js` (trò chạy trên server) hoặc `games/hanoi.js` (trò chơi trên trang, server kiểm tra lại) làm mẫu.
 2. Viết `games/<tên>.html`: trang trò chơi. Trang nạp `/app.js` rồi gọi `initPage({ game: '<tên>', ... })` để có sẵn ô nhập tên, tab và bảng xếp hạng.
-3. Thêm `<tên>` vào `GAME_IDS` trong `server.js` và vào `SHELL` trong `sw.js` (nhớ đổi tên `CACHE`).
+3. Thêm `<tên>` vào `GAME_IDS` trong `server.js`, vào `GAME_LIST` trong `app.js` (danh sách “Trò chơi khác” ở cuối mỗi trang) và vào `SHELL` trong `sw.js` (nhớ đổi tên `CACHE`).
 4. Thêm một thẻ `<a class="game">` vào menu trong `index.html`.
 
 ## Lưu ý khi nâng cấp từ bản chỉ có 12 đồng xu

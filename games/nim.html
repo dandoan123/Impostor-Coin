@@ -19,18 +19,28 @@
 <link rel="stylesheet" href="/app.css">
 <style>
 /* Only what this game needs; the shared look is in app.css. */
-.heap { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 12px; padding: 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.heap { display: flex; flex-direction: column; gap: 4px; margin: 14px 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); }
 .heap-row { display: grid; grid-template-columns: 4.6em minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 48px; }
 .heap-row .name { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-.heap-row .coins { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 6px; }
+/* Each coin is a 44px-tall target; the targets touch so a tap between two coins still lands on one. */
+.heap-row .coins { display: flex; flex-wrap: wrap; }
+.heap-row .coinbtn { padding: 5px 3px; border-radius: 12px; }
 .heap-row .coinface { width: 34px; height: 34px; }
 .heap-row .none { color: var(--muted); font-style: italic; font-size: 14px; }
 .heap-row .bin { font: 700 14px var(--f-mono); letter-spacing: .18em; color: var(--muted); }
 /* Hovering or choosing a coin takes it and every coin to its right. */
 .coinbtn:not(:disabled):hover .coinface, .coinbtn:not(:disabled):hover ~ .coinbtn .coinface { transform: translateY(-3px); }
-.coinbtn.take .coinface { transform: translateY(-6px); box-shadow: inset 0 0 0 2px var(--coin-edge), 0 0 0 3px var(--bg), 0 0 0 5px var(--ink); }
-.coinbtn.bot .coinface { opacity: .3; transform: translateY(-6px); transition: opacity .6s, transform .6s; }
-@media (max-width: 480px) { .heap-row { grid-template-columns: 3.4em minmax(0, 1fr) auto; gap: 6px; } .heap-row .coinface { width: 28px; height: 28px; } .heap-row .coins { gap: 4px; } }
+.coinbtn.take .coinface { transform: translateY(-5px); box-shadow: inset 0 0 0 2px var(--coin-edge), 0 0 0 2px var(--bg), 0 0 0 4px var(--ink); }
+.coinbtn.bot .coinface { opacity: .3; transform: translateY(-5px); transition: opacity .6s, transform .6s; }
+/* Seven coins and the binary number have to share a phone's width: the row is named by its number only. */
+@media (max-width: 480px) {
+  .heap { padding-inline: 8px; }
+  .heap-row { grid-template-columns: 1.4em minmax(0, 1fr) auto; gap: 6px; }
+  .heap-row .name span { display: none; }
+  .heap-row .coinbtn { padding: 9px 2px; }
+  .heap-row .coinface { width: 26px; height: 26px; }
+  .heap-row .bin { letter-spacing: .1em; }
+}
 .nimsum { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--brass-soft); font-size: 14px; }
 .nimsum b { font-family: var(--f-mono); letter-spacing: .12em; }
 </style>
@@ -70,7 +80,7 @@
           <p class="note">Bốc được đồng cuối cùng thì thắng. Bấm vào một đồng xu để chọn nó cùng mọi đồng bên phải nó trong hàng, rồi bấm nút bốc.</p>
           <p class="score" id="nm-score"></p>
         </div>
-        <ol class="log" id="nm-log"></ol>
+        <ol class="log" id="nm-log" data-empty="Các lượt bốc sẽ hiện ở đây."></ol>
         <div class="verdict" id="nm-verdict" hidden></div>
         <div class="block">
           <p class="label">Đối thủ</p>
@@ -101,17 +111,24 @@ $('nm-heap').addEventListener('click', e => {
   $('nm-heap').querySelector(`[data-row="${row}"][data-i="${b.dataset.i}"]`)?.focus();
 });
 $('nm-take').addEventListener('click', nmTake);
-$('nm-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== nm.mode) { nm.mode = m; nmNew(); } });
-$('nm-new').addEventListener('click', nmNew);
+$('nm-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== nm.mode) nmLeave('mode-' + m, () => { nm.mode = m; }); });
+$('nm-new').addEventListener('click', () => nmLeave('new'));
 $('nm-hints').addEventListener('change', e => { nm.hints = e.target.checked; nmRender(); });
 
+// A game left after its first move is saved as abandoned, so leaving one takes a second press.
+function nmLeave(key, change) {
+  if (nm.busy) return;
+  if (nm.id && !nm.over && nm.log.length && !confirmed(key)) { nm.error = ABANDON_ASK; say(ABANDON_ASK); nmRender(); return; }
+  if (change) change();
+  nmNew();
+}
 async function nmNew() {
   if (nm.busy) return;
   if (!player.name) { openGate(); return; }
   Object.assign(nm, { id: null, rows: [], log: [], sel: null, botMove: null, over: null, busy: true, error: '' });
   nmRender();
   try { const r = await startGame(nm.mode); nm.id = r.id; nm.rows = r.rows; }
-  catch (e) { nm.error = errText(e); }
+  catch (e) { nm.error = errText(e); say(nm.error); }
   nm.busy = false; nmRender();
 }
 async function nmTake() {
@@ -124,12 +141,13 @@ async function nmTake() {
     if (r.bot) {
       // Show which coins the machine takes before they disappear.
       nm.botMove = r.bot; nmRender();
+      say(`Máy bốc ${r.bot.k} đồng ở hàng ${r.bot.row + 1}.`);
       await wait(reduceMotion ? 300 : 1000);
       nm.botMove = null; nm.log.push({ who: 'M', row: r.bot.row, k: r.bot.k });
     }
     nm.rows = r.rows;
-    if (r.over) { nm.over = r.over; loadBoard(); }
-  } catch (e) { nm.error = errText(e); }
+    if (r.over) { nm.over = r.over; say(r.over === 'win' ? 'Bạn bốc đồng cuối cùng. Bạn thắng.' : 'Máy bốc đồng cuối cùng. Máy thắng.'); loadBoard(); }
+  } catch (e) { nm.error = errText(e); say(nm.error); }
   nm.busy = false; nmRender();
 }
 const bits = n => n.toString(2).padStart(3, '0');
@@ -141,7 +159,7 @@ function nmRender() {
       const cls = nm.sel && nm.sel.row === row && fromEnd <= nm.sel.k ? ' take' : nm.botMove && nm.botMove.row === row && fromEnd <= nm.botMove.k ? ' bot' : '';
       return `<button class="coinbtn${cls}" type="button" data-row="${row}" data-i="${i}" aria-label="Hàng ${row + 1}: bốc ${fromEnd} đồng"${nm.busy || nm.over ? ' disabled' : ''}><span class="coinface"></span></button>`;
     }).join('');
-    return `<div class="heap-row"><span class="name">Hàng ${row + 1}</span><div class="coins">${coins || '<span class="none">đã hết</span>'}</div>${nm.hints ? `<span class="bin" title="${n} viết theo hệ nhị phân">${bits(n)}</span>` : ''}</div>`;
+    return `<div class="heap-row"><span class="name"><span>Hàng </span>${row + 1}</span><div class="coins">${coins || '<span class="none">đã hết</span>'}</div>${nm.hints ? `<span class="bin" title="${n} viết theo hệ nhị phân">${bits(n)}</span>` : ''}</div>`;
   }).join('') || '<p class="note">Đang chia đồng xu…</p>';
   $('nm-steplabel').textContent = nm.over ? 'Ván đã kết thúc' : nm.botMove ? 'Máy đang bốc…' : playing ? 'Lượt của bạn' : '';
   $('nm-pill').textContent = `Còn ${total} đồng`;
