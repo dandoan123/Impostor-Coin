@@ -23,7 +23,7 @@
 .topbar .playerbar { padding-bottom: 0; }
 .topbar + .install-hint { margin: -12px 0 22px; }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
-.brand .coinface { width: 22px; height: 22px; }
+.brand .coinface { width: 22px; height: 22px; border-width: 2px; }
 .brand .coinface + .coinface { margin-left: -14px; }
 
 .menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
@@ -51,6 +51,7 @@
 .art .rope { fill: none; stroke: var(--muted); stroke-width: 1.5; }
 .art .frame { fill: none; stroke: var(--metal); stroke-width: 4; stroke-linejoin: round; }
 .art .coin { fill: var(--coin); stroke: var(--coin-edge); stroke-width: 2; }
+.art circle.coin, .art .coin circle { stroke-width: 3; stroke-dasharray: 1.6 1.6; }
 .art .brass { fill: var(--brass); }
 .art .glow { fill: var(--brass); opacity: .22; }
 .art .water { fill: var(--light); opacity: .8; }

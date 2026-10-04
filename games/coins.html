@@ -28,7 +28,10 @@
 .s-tick { stroke: var(--muted); stroke-width: 1.5; }
 .s-needle { stroke: var(--brass); stroke-width: 3; stroke-linecap: round; }
 .s-label { fill: var(--muted); font: 600 11px var(--f-body); letter-spacing: .14em; text-anchor: middle; }
-.coin .face { fill: var(--coin); stroke: var(--coin-edge); stroke-width: 2; }
+/* A coin on the scale: .face is the dark base, .reed the ring of ridges on its edge, .disc the face the number sits on. */
+.coin .face { fill: var(--coin-edge); stroke: var(--coin-edge); stroke-width: 1; }
+.coin .reed { fill: none; stroke: var(--coin-hi); stroke-width: 2.5; stroke-dasharray: 1.4 1.4; }
+.coin .disc { fill: var(--coin); stroke: var(--coin-edge); stroke-width: 1; }
 .coin .shine { fill: var(--coin-hi); opacity: .55; }
 .coin text { fill: var(--coin-ink); font: 700 13px var(--f-mono); text-anchor: middle; dominant-baseline: central; }
 .coin.fake-H .face { stroke: var(--heavy); stroke-width: 4.5; }
@@ -41,7 +44,7 @@
 .chip.st-genuine .coinface { opacity: .3; filter: grayscale(1); }
 .chip.st-H .mark { color: var(--heavy); }
 .chip.st-L .mark { color: var(--light); }
-.chip.is-secret .coinface { box-shadow: inset 0 0 0 2px var(--coin-edge), 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); }
+.chip.is-secret .coinface { box-shadow: inset 0 0 0 1.5px var(--coin-edge), 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); }
 /* The guess coins are 32px with 6px of padding around: 44px to tap. */
 .picker { display: grid; grid-template-columns: repeat(6, max-content); gap: 0; margin: -4px -6px; }
 .picker .coinbtn { padding: 6px; }
@@ -216,8 +219,11 @@ function makeScale(host, onCoin) {
         cg.addEventListener('click', () => onCoin(c));
         cg.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCoin(c); } });
       }
+      const d = r - 3.5;
       sv('circle', { cx: x, cy: y, r, class: 'face' }, cg);
-      sv('circle', { cx: x - r * .35, cy: y - r * .38, r: r * .28, class: 'shine' }, cg);
+      sv('circle', { cx: x, cy: y, r: r - 1.75, class: 'reed' }, cg);
+      sv('circle', { cx: x, cy: y, r: d, class: 'disc' }, cg);
+      sv('circle', { cx: x - d * .35, cy: y - d * .38, r: d * .28, class: 'shine' }, cg);
       const t = sv('text', { x, y: y + .5 }, cg); t.textContent = c;
       if (r < 15) t.style.fontSize = '11px';
     });

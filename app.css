@@ -89,7 +89,7 @@ main:focus, [role="tabpanel"]:focus { outline: none; }
 .gate-card h2 { margin: 0 0 4px; font-family: var(--f-display); font-size: 30px; line-height: 1.1; }
 .gate-card .eyebrow { margin: 0; }
 .gate-coins { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-.gate-coins .coinface { width: 26px; height: 26px; font-size: 11px; }
+.gate-coins .coinface { width: 26px; height: 26px; border-width: 2px; font-size: 11px; }
 .input { font: 500 16px var(--f-body); color: var(--ink); background: var(--bg); border: 1px solid var(--edge); border-radius: 9px; padding: 11px 12px; width: 100%; min-height: 46px; box-shadow: var(--shadow-well); }
 .input:focus { outline: 2px solid var(--brass); outline-offset: 1px; }
 .input.num { width: 6.5em; font-family: var(--f-mono); font-weight: 700; }
@@ -153,15 +153,21 @@ body[data-page="game"] .wrap { display: flex; flex-direction: column; }
 /* The sunken tray that holds a game's pieces. */
 .well { border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); }
 
-/* coins as buttons: a coin has a lip under it and goes down when pressed */
-.coinface { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; font: 700 14px var(--f-mono); color: var(--coin-ink);
-  background: radial-gradient(circle at 34% 30%, var(--coin-hi) 0 18%, var(--coin) 52%, var(--coin-edge) 100%); box-shadow: inset 0 0 0 2px var(--coin-edge), var(--lip-coin); font-variant-numeric: tabular-nums; }
+/* A coin, from the outside in: a reeded edge (the ring of fine ridges, painted in the border), a rim line,
+   a thin raised ring, then the face with its number. It has a lip under it and goes down when pressed. */
+.coinface { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; border: 3px solid transparent;
+  font: 700 14px var(--f-mono); color: var(--coin-ink); font-variant-numeric: tabular-nums;
+  background:
+    radial-gradient(circle closest-side, transparent 75%, var(--coin-edge) 77% 80%, transparent 82%) padding-box,
+    radial-gradient(circle at 34% 30%, var(--coin-hi) 0 18%, var(--coin) 52%, var(--coin-edge) 100%) padding-box,
+    repeating-conic-gradient(var(--coin-edge) 0 5deg, var(--coin-hi) 5deg 10deg) border-box;
+  box-shadow: inset 0 0 0 1.5px var(--coin-edge), var(--lip-coin); }
 /* The padding widens the tappable area to 44px around a 38px coin. */
 .coinbtn { appearance: none; border: 0; padding: 3px; background: none; cursor: pointer; border-radius: 50%; }
 .coinbtn .coinface { transition: transform var(--t-fast) var(--ease-out), box-shadow var(--t-fast), opacity var(--t-base); }
 .coinbtn:hover:not(:disabled) .coinface { transform: translateY(-2px); }
-.coinbtn:active:not(:disabled) .coinface { transform: translateY(2px); box-shadow: inset 0 0 0 2px var(--coin-edge); }
-.coinbtn[aria-pressed="true"] .coinface { box-shadow: inset 0 0 0 2px var(--coin-edge), 0 0 0 3px var(--bg), 0 0 0 5px var(--ink); }
+.coinbtn:active:not(:disabled) .coinface { transform: translateY(2px); box-shadow: inset 0 0 0 1.5px var(--coin-edge); }
+.coinbtn[aria-pressed="true"] .coinface { box-shadow: inset 0 0 0 1.5px var(--coin-edge), 0 0 0 3px var(--bg), 0 0 0 5px var(--ink); }
 .coinbtn:disabled { cursor: default; }
 
 /* side panel */
