@@ -81,19 +81,19 @@
       && who.every(i => Number.isInteger(i) && i >= 0 && i < kinds.length && st.far[i] === (st.boat === 1))
       && who.some(i => ROWERS.includes(kinds[i])),
     cross(st, who) { who.forEach(i => { st.far[i] = !st.far[i]; }); st.boat = 1 - st.boat; },
-    // What goes wrong on a bank holding these kinds, or '' when it is safe.
+    // What goes wrong on a bank holding these kinds: [what happens, the kind that gets hurt], or null when it is safe.
     trouble(kinds) {
       const n = k => kinds.filter(x => x === k).length;
-      if (!n('farmer') && n('wolf') && n('goat')) return 'Sói ăn thịt dê';
-      if (!n('farmer') && n('goat') && n('cabbage')) return 'Dê ăn mất bắp cải';
-      if (n('monk') && n('demon') > n('monk')) return 'Quỷ đông hơn sư và bắt mất các sư';
-      return '';
+      if (!n('farmer') && n('wolf') && n('goat')) return ['Sói ăn thịt dê', 'goat'];
+      if (!n('farmer') && n('goat') && n('cabbage')) return ['Dê ăn mất bắp cải', 'cabbage'];
+      if (n('monk') && n('demon') > n('monk')) return ['Quỷ đông hơn sư và bắt mất các sư', 'monk'];
+      return null;
     },
-    // The trouble after the boat lands, on either bank: [message, bank] or null.
+    // The trouble after the boat lands, on either bank: [what happens, bank, the kind that gets hurt], or null.
     check(st, kinds) {
       for (const side of [0, 1]) {
         const t = river.trouble(kinds.filter((_, i) => st.far[i] === (side === 1)));
-        if (t) return [t, side];
+        if (t) return [t[0], side, t[1]];
       }
       return null;
     },
