@@ -10,10 +10,11 @@ Bộ trò chơi trên web, mỗi trò là một bài toán nổi tiếng. Trang 
 | Qua cầu trong đêm | `/bridge` | Đưa 4 người qua cầu trong 17 phút với một chiếc đèn pin | Trang, server kiểm tra lại |
 | Hai bình, một vòi nước | `/jugs` | Đong đúng 4 lít bằng bình 3 lít và bình 5 lít | Trang, server kiểm tra lại |
 | Tháp Hà Nội | `/hanoi` | Chuyển chồng đĩa sang cọc khác với ít bước nhất | Trang, server kiểm tra lại |
+| Sói, dê và bắp cải | `/river` | Chở sói, dê và bắp cải qua sông mà không con nào ăn mất con nào (chế độ khó: 3 sư và 3 quỷ) | Trang, server kiểm tra lại |
 
 - Người chơi phải nhập tên trước khi chơi. Kết quả mỗi ván được lưu lại, mỗi trò có bảng xếp hạng riêng.
 - Ba trò đầu chạy trên server, nên người chơi không xem được đáp án trong mã nguồn trang. Ở chế độ khó, máy không chọn đáp án trước mà luôn trả lời theo hướng bất lợi nhất cho người chơi, nên chỉ cách làm đúng mới thắng.
-- Ba trò sau chơi ngay trên trang. Khi xong, trang gửi các bước đi lên server; server đi lại từng bước theo cùng bộ luật (`rules.js`) rồi mới ghi kết quả.
+- Bốn trò sau chơi ngay trên trang. Khi xong, trang gửi các bước đi lên server; server đi lại từng bước theo cùng bộ luật (`rules.js`) rồi mới ghi kết quả.
 - Có thể cài như một ứng dụng (PWA) trên Android, iPhone và máy tính.
 - Không cần thư viện ngoài, chỉ cần Node.js 18 trở lên.
 

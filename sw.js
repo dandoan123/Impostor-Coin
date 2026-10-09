@@ -1,7 +1,7 @@
 // Service worker: lets the app open (and install) as a PWA.
 // Game moves always go to the server; only the pages, their scripts and the fonts are cached.
-const CACHE = 'puzzles-v2';
-const SHELL = ['/', '/coins', '/eggs', '/nim', '/bridge', '/jugs', '/hanoi', '/app.css', '/app.js', '/core.js', '/rules.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/favicon-32.png'];
+const CACHE = 'puzzles-v3';
+const SHELL = ['/', '/coins', '/eggs', '/nim', '/bridge', '/jugs', '/hanoi', '/river', '/app.css', '/app.js', '/core.js', '/rules.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png', '/icons/favicon-32.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

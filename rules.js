@@ -1,4 +1,4 @@
-// Rules of the puzzles that are played in the page: Tháp Hà Nội, Đong nước, Qua cầu.
+// Rules of the puzzles that are played in the page: Tháp Hà Nội, Đong nước, Qua cầu, Qua sông.
 // The page plays with them; the server replays the submitted moves with the same code before it saves a result.
 (function (root) {
   /* Tháp Hà Nội: three pegs, each listed bottom to top; a bigger number is a bigger disc. */
@@ -72,7 +72,60 @@
     }
   };
 
-  const api = { hanoi, jugs, bridge };
+  /* Qua sông: kinds[i] is what passenger i is; far[i] tells whether it has crossed; boat is 0 on the near bank, 1 on the far bank.
+     A trip takes 1..cap passengers standing where the boat is, at least one of whom can row. */
+  const ROWERS = ['farmer', 'monk', 'demon'];
+  const river = {
+    start: n => ({ far: Array(n).fill(false), boat: 0 }),
+    can: (st, kinds, cap, who) => Array.isArray(who) && who.length >= 1 && who.length <= cap && new Set(who).size === who.length
+      && who.every(i => Number.isInteger(i) && i >= 0 && i < kinds.length && st.far[i] === (st.boat === 1))
+      && who.some(i => ROWERS.includes(kinds[i])),
+    cross(st, who) { who.forEach(i => { st.far[i] = !st.far[i]; }); st.boat = 1 - st.boat; },
+    // What goes wrong on a bank holding these kinds, or '' when it is safe.
+    trouble(kinds) {
+      const n = k => kinds.filter(x => x === k).length;
+      if (!n('farmer') && n('wolf') && n('goat')) return 'Sói ăn thịt dê';
+      if (!n('farmer') && n('goat') && n('cabbage')) return 'Dê ăn mất bắp cải';
+      if (n('monk') && n('demon') > n('monk')) return 'Quỷ đông hơn sư và bắt mất các sư';
+      return '';
+    },
+    // The trouble after the boat lands, on either bank: [message, bank] or null.
+    check(st, kinds) {
+      for (const side of [0, 1]) {
+        const t = river.trouble(kinds.filter((_, i) => st.far[i] === (side === 1)));
+        if (t) return [t, side];
+      }
+      return null;
+    },
+    done: st => st.far.every(Boolean),
+    // Fewest trips that bring everyone across without trouble; Infinity when it cannot be done.
+    best(kinds, cap) {
+      const key = st => st.far.map(Number).join('') + st.boat;
+      let layer = [river.start(kinds.length)], n = 0;
+      const seen = new Set([key(layer[0])]);
+      while (layer.length) {
+        if (layer.some(river.done)) return n;
+        const next = [];
+        for (const st of layer) {
+          const here = kinds.map((_, i) => i).filter(i => st.far[i] === (st.boat === 1));
+          const groups = here.map(i => [i]);
+          if (cap >= 2) for (let x = 0; x < here.length; x++) for (let y = x + 1; y < here.length; y++) groups.push([here[x], here[y]]);
+          for (const who of groups) {
+            if (!river.can(st, kinds, cap, who)) continue;
+            const t = { far: st.far.slice(), boat: st.boat };
+            river.cross(t, who);
+            const k = key(t);
+            if (river.check(t, kinds) || seen.has(k)) continue;
+            seen.add(k); next.push(t);
+          }
+        }
+        layer = next; n++;
+      }
+      return Infinity;
+    }
+  };
+
+  const api = { hanoi, jugs, bridge, river };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.RULES = api;
 })(typeof window !== "undefined" ? window : globalThis);

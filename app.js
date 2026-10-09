@@ -105,7 +105,7 @@ function scoreLine() {
   const me = myStats();
   if (!me) return '';
   return page.solveOnly ? `Bạn đã giải <b>${me.wins}</b> lần, trong đó <b>${me.stars}</b> lần với số bước ít nhất`
-    : `Thành tích của bạn: thắng <b>${me.wins}</b> / <b>${me.played}</b> ván, trong đó <b>${me.stars}</b> ván khó`;
+    : `Thành tích của bạn: thắng <b>${me.wins}</b> / <b>${me.played}</b> ván, trong đó <b>${me.stars}</b> ván ${page.starNote || 'khó'}`;
 }
 
 /* ---------- tabs ---------- */
@@ -123,7 +123,7 @@ function showTab(name) {
 const PLAYERBAR = '<div class="playerbar"><button class="linkbtn" id="install" type="button" hidden>Cài ứng dụng</button><span>Người chơi: <b id="player-name"></b></span><button class="linkbtn" id="player-change" type="button"></button></div>';
 const INSTALL_HINT = '<p class="install-hint" id="install-hint" hidden>Trên iPhone/iPad: mở trang bằng Safari, bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên), rồi chọn <b>Thêm vào MH chính</b>.</p>';
 // Every game, in menu order; a game page lists the others at its foot.
-const GAME_LIST = [['coins', 'Bài toán 12 đồng xu'], ['eggs', 'Hai quả trứng, 100 tầng'], ['nim', 'Nim'], ['bridge', 'Qua cầu trong đêm'], ['jugs', 'Hai bình, một vòi nước'], ['hanoi', 'Tháp Hà Nội']];
+const GAME_LIST = [['coins', 'Bài toán 12 đồng xu'], ['eggs', 'Hai quả trứng, 100 tầng'], ['nim', 'Nim'], ['bridge', 'Qua cầu trong đêm'], ['jugs', 'Hai bình, một vòi nước'], ['hanoi', 'Tháp Hà Nội'], ['river', 'Sói, dê và bắp cải']];
 function initPage(cfg) {
   page = cfg;
   document.body.dataset.page = cfg.game ? 'game' : 'menu';
