@@ -16,7 +16,7 @@ const crypto = require('crypto');
 
 // The games, in menu order. Each one has its logic in games/<id>.js (never sent to the browser)
 // and its page in games/<id>.html (served at /<id>).
-const GAME_IDS = ['coins', 'eggs', 'nim', 'bridge', 'jugs', 'hanoi'];
+const GAME_IDS = ['coins', 'eggs', 'nim', 'bridge', 'jugs', 'hanoi', 'river'];
 const GAMES = Object.fromEntries(GAME_IDS.map(id => [id, require(`./games/${id}.js`)]));
 
 const PORT = Number(process.env.PORT) || 3000;

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Câu đố kinh điển</title>
-<meta name="description" content="Những bài toán nổi tiếng, chơi được ngay: 12 đồng xu, thả trứng, Nim, qua cầu, đong nước, Tháp Hà Nội.">
+<meta name="description" content="Những bài toán nổi tiếng, chơi được ngay: 12 đồng xu, thả trứng, Nim, qua cầu, đong nước, Tháp Hà Nội, sói, dê và bắp cải.">
 <meta name="theme-color" content="#17242B">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
@@ -29,10 +29,10 @@
 .menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 28px; }
 @media (max-width: 960px) { .menu { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .menu { grid-template-columns: 1fr; gap: 14px; } }
-/* A card rests on the page, lifts under the pointer and sinks when pressed; the six cards arrive one after another. */
+/* A card rests on the page, lifts under the pointer and sinks when pressed; the cards arrive one after another. */
 .game { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; color: inherit; text-decoration: none; box-shadow: var(--shadow-card);
   transition: border-color var(--t-base), transform var(--t-base) var(--ease-out), box-shadow var(--t-base); animation: rise var(--t-slow) var(--ease-out) backwards; }
-.game:nth-child(2) { animation-delay: 40ms; } .game:nth-child(3) { animation-delay: 80ms; } .game:nth-child(4) { animation-delay: 120ms; } .game:nth-child(5) { animation-delay: 160ms; } .game:nth-child(6) { animation-delay: 200ms; }
+.game:nth-child(2) { animation-delay: 40ms; } .game:nth-child(3) { animation-delay: 80ms; } .game:nth-child(4) { animation-delay: 120ms; } .game:nth-child(5) { animation-delay: 160ms; } .game:nth-child(6) { animation-delay: 200ms; } .game:nth-child(7) { animation-delay: 240ms; }
 .game:hover { border-color: var(--edge); transform: translateY(-3px); box-shadow: var(--shadow-raised); }
 .game:active { transform: translateY(0) scale(.99); box-shadow: var(--shadow-card); }
 .game .art { display: block; width: 100%; height: auto; background: var(--bg); border-bottom: 1px solid var(--line); }
@@ -78,13 +78,13 @@
 
   <header class="hero">
     <div>
-      <p class="eyebrow">Sáu bài toán nổi tiếng · chơi ngay trên trình duyệt</p>
+      <p class="eyebrow">Bảy bài toán nổi tiếng · chơi ngay trên trình duyệt</p>
       <h1>Những câu đố <em>kinh điển</em></h1>
       <p class="lede">Mỗi trò ở đây là một bài toán đã làm khó người ta hàng chục, có khi hàng trăm năm. Luật chơi chỉ vài dòng, nhưng muốn thắng thì phải tìm ra <b>cách làm đúng</b>. Ở chế độ khó, máy luôn chọn tình huống xấu nhất cho bạn, nên đoán mò sẽ thua.</p>
     </div>
     <div class="facts">
-      <div class="fact"><b>6</b><span>trò chơi, mỗi trò có bảng xếp hạng riêng</span></div>
-      <div class="fact ok"><b id="me-won">0 / 6</b><span>trò bạn đã thắng ít nhất một lần</span></div>
+      <div class="fact"><b>7</b><span>trò chơi, mỗi trò có bảng xếp hạng riêng</span></div>
+      <div class="fact ok"><b id="me-won">0 / 7</b><span>trò bạn đã thắng ít nhất một lần</span></div>
     </div>
   </header>
 
@@ -186,11 +186,27 @@
         <div class="foot"><span class="key">2ⁿ − 1 bước</span><span class="mine"></span></div>
       </div>
     </a>
+    <a class="game" href="/river" data-game="river">
+      <svg class="art" viewBox="0 0 320 140" aria-hidden="true">
+        <path class="metal" d="M0 84h88v56H0zM232 84h88v56h-88z"/>
+        <path class="water" d="M88 100h144v40H88z"/>
+        <path class="dark" d="M128 92h64l-8 14h-48z"/>
+        <g class="dark"><circle cx="150" cy="70" r="6"/><path d="M142 92V82a8 8 0 0 1 16 0v10z"/></g>
+        <g class="brass"><path d="M164 92V80q0-6 6-6h10l4-6 2 8-4 4v12z"/></g>
+        <g class="faint"><g class="dark"><path d="M22 84l4-14 5 6h8l5-6 4 14z"/></g><circle class="coin" cx="66" cy="74" r="10"/></g>
+        <path class="dash" d="M120 120h80"/>
+      </svg>
+      <div class="text">
+        <p class="eyebrow">Qua sông</p>
+        <h2>Sói, dê và bắp cải</h2>
+        <p class="blurb">Chở cả ba qua sông bằng chiếc thuyền chỉ chở thêm được một thứ. Vắng người, sói ăn dê, dê ăn bắp cải.</p>
+        <div class="foot"><span class="key">7 lượt</span><span class="mine"></span></div>
+      </div>
+    </a>
   </main>
 
   <h2 class="sec">Sắp có</h2>
   <ul class="soon">
-    <li><b>Sói, dê và bắp cải</b><span>Chở cả ba qua sông bằng chiếc thuyền chỉ chở thêm được một thứ.</span></li>
     <li><b>Monty Hall</b><span>Ba cánh cửa, một chiếc xe. Đổi cửa hay giữ nguyên?</span></li>
     <li><b>Tám quân hậu</b><span>Đặt tám quân hậu lên bàn cờ sao cho không quân nào ăn được quân nào.</span></li>
     <li><b>Đoán mã màu</b><span>Mastermind, nhưng máy được đổi mã miễn là khớp với các gợi ý đã cho.</span></li>
@@ -216,7 +232,7 @@ async function loadSummary() {
   });
   $('me-won').textContent = `${won} / ${document.querySelectorAll('.game').length}`;
 }
-initPage({ title: 'Câu đố kinh điển', eyebrow: 'Sáu bài toán nổi tiếng', onPlayer: loadSummary });
+initPage({ title: 'Câu đố kinh điển', eyebrow: 'Bảy bài toán nổi tiếng', onPlayer: loadSummary });
 </script>
 </body>
 </html>

@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sói, dê và bắp cải</title>
+<meta name="description" content="Chở sói, dê và bắp cải qua sông bằng chiếc thuyền nhỏ, đừng để con nào ăn mất con nào.">
+<meta name="theme-color" content="#17242B">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Câu đố">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,700;1,7..72,500&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+/* Only what this game needs; the shared look is in app.css. */
+/* near bank | river with the boat | far bank */
+.scene { display: grid; grid-template-columns: minmax(0, 1fr) minmax(112px, .7fr) minmax(0, 1fr); margin: 14px 0 12px; align-items: stretch; }
+.bank { min-height: 210px; padding: 10px 6px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); display: flex; flex-direction: column; gap: 10px; transition: background-color var(--t-base); }
+.bank.here { background: var(--brass-soft); border-color: transparent; }
+.bank.bad { background: var(--heavy-soft); border-color: var(--heavy); }
+.bank .where { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; }
+.bank .crowd { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-content: flex-start; flex: 1; }
+.water { position: relative; display: flex; flex-direction: column; justify-content: center; padding: 0 4px;
+  background: repeating-linear-gradient(170deg, transparent 0 14px, color-mix(in srgb, var(--light) 22%, transparent) 14px 16px), color-mix(in srgb, var(--light) 14%, transparent); }
+/* The boat sits at the edge of the bank it is moored at. */
+.boat { align-self: flex-start; width: 104px; min-height: 92px; display: flex; flex-direction: column; justify-content: flex-end; transition: transform var(--t-slow) var(--ease-out); }
+.boat.far { align-self: flex-end; }
+.boat .seats { display: flex; justify-content: center; gap: 2px; min-height: 66px; }
+.boat .hull { height: 18px; border-radius: 0 0 40px 40px / 0 0 18px 18px; background: var(--metal-dark); }
+.boat .cap { margin: 4px 0 0; text-align: center; font: 700 11px var(--f-mono); color: var(--muted); }
+/* a passenger: a little drawing with its name under it */
+.who { appearance: none; border: 0; background: none; padding: 0; margin: 0; font: inherit; cursor: pointer; width: 50px; height: 66px; border-radius: 8px; color: var(--metal-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: transform var(--t-base) var(--ease-spring); }
+.who svg { display: block; width: 42px; height: 42px; fill: currentColor; }
+.who span { font-size: 11.5px; font-weight: 600; color: var(--ink); line-height: 1.6; white-space: nowrap; }
+.who.farmer, .who.monk { color: var(--brass); }
+.who.wolf { color: var(--metal-dark); }
+.who.goat { color: var(--metal); }
+.who.cabbage { color: var(--ok); }
+.who.demon { color: var(--heavy); }
+.who:hover:not(:disabled) { transform: translateY(-2px); }
+.who:active:not(:disabled) { transform: scale(.94); }
+.who:disabled { cursor: default; }
+.bank:not(.here) .who { opacity: .6; }
+.bank.bad .who { opacity: 1; }
+@media (max-width: 480px) { .scene { grid-template-columns: minmax(0, 1fr) 100px minmax(0, 1fr); } .boat { width: 94px; } .who { width: 44px; height: 62px; } .who svg { width: 38px; height: 38px; } .bank { padding-inline: 3px; } .bank .crowd { gap: 2px; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Alcuin xứ York, thế kỷ 8 · qua sông</p>
+      <h1>Sói, dê và <em>bắp cải</em></h1>
+      <p class="lede">Một người nông dân cần đưa <b>một con sói, một con dê và một cây bắp cải</b> sang bên kia sông. Chiếc thuyền chỉ chở được người nông dân và <b>thêm một thứ</b>, và chỉ người mới chèo được thuyền. Vắng người, <b>sói sẽ ăn thịt dê</b>, còn <b>dê sẽ ăn mất bắp cải</b>.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>7 lượt</b><span>là ít nhất để đưa cả ba qua sông an toàn</span></div>
+      <div class="fact"><b>Thế kỷ 8</b><span>câu đố có trong sách luyện trí cho thanh niên của Alcuin, một trong những tuyển tập câu đố cổ nhất châu Âu</span></div>
+    </div>
+  </header>
+
+  <section id="p-play" role="tabpanel" aria-labelledby="t-play" hidden>
+    <div class="stage">
+      <div class="panel">
+        <div class="scale-head">
+          <span class="step-label" id="rv-steplabel"></span>
+          <span class="pill" id="rv-pill"></span>
+        </div>
+        <div class="scene" id="rv-scene">
+          <div class="bank" id="rv-bank-0"><p class="where">Bờ bên này</p><div class="crowd"></div></div>
+          <div class="water"><div class="boat" id="rv-boat"><div class="seats"></div><div class="hull"></div><p class="cap" id="rv-cap"></p></div></div>
+          <div class="bank" id="rv-bank-1"><p class="where">Bờ bên kia</p><div class="crowd"></div></div>
+        </div>
+        <div class="row">
+          <button class="btn primary big" id="rv-go"></button>
+          <button class="btn" id="rv-reset">Làm lại từ đầu</button>
+          <button class="btn" id="rv-retry" hidden>Gửi lại kết quả</button>
+        </div>
+        <p class="warn" id="rv-warn"></p>
+      </div>
+      <aside class="side">
+        <div class="block">
+          <p class="label">Nhiệm vụ</p>
+          <p class="note" id="rv-task"></p>
+          <p class="score" id="rv-score"></p>
+        </div>
+        <ol class="log" id="rv-log" data-empty="Các lượt chèo thuyền sẽ hiện ở đây."></ol>
+        <div class="verdict" id="rv-verdict" hidden></div>
+        <div class="block">
+          <p class="label">Mức độ</p>
+          <div class="row">
+            <div class="seg" id="rv-mode"><button data-m="classic">Kinh điển</button><button data-m="hard">Khó</button></div>
+            <button class="btn" id="rv-new">Ván mới</button>
+          </div>
+          <p class="note" id="rv-modenote"></p>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script src="/rules.js"></script>
+<script src="/app.js"></script>
+<script>
+const { river } = RULES;
+const PUZZLES = { classic: { kinds: ['farmer', 'wolf', 'goat', 'cabbage'], cap: 2, best: 7 }, hard: { kinds: ['monk', 'monk', 'monk', 'demon', 'demon', 'demon'], cap: 2, best: 11 } };
+const NAME = { farmer: 'Người', wolf: 'Sói', goat: 'Dê', cabbage: 'Bắp cải', monk: 'Sư', demon: 'Quỷ' };
+const ART = {
+  farmer: '<circle cx="21" cy="12" r="6"/><path d="M9 8h24l-3-3H12z"/><path d="M8 42V30a13 13 0 0 1 26 0v12z"/>',
+  wolf: '<path d="M6 8l9 7h12l9-7-2 15 6 10-11 7H13L2 33l6-10z"/><circle cx="15" cy="23" r="2" fill="var(--bg)"/><circle cx="27" cy="23" r="2" fill="var(--bg)"/>',
+  goat: '<path d="M10 4q-6 6 1 14l2-4q-3-4 1-8zM32 4q6 6-1 14l-2-4q3-4-1-8z"/><path d="M11 14h20l-2 16-8 6-8-6z"/><path d="M18 35h6l-3 7z"/><circle cx="16" cy="21" r="2" fill="var(--bg)"/><circle cx="26" cy="21" r="2" fill="var(--bg)"/>',
+  cabbage: '<circle cx="21" cy="24" r="16"/><path d="M21 9v30M21 24q-8-4-12-12M21 24q8-4 12-12M21 31q-9-2-14-8M21 31q9-2 14-8" fill="none" stroke="var(--bg)" stroke-width="1.6" stroke-linecap="round"/>',
+  monk: '<circle cx="21" cy="11" r="7"/><path d="M6 42l4-16a11 11 0 0 1 22 0l4 16z"/><path d="M14 24l7 9 7-9" fill="none" stroke="var(--bg)" stroke-width="1.6"/>',
+  demon: '<path d="M13 2l2 7h12l2-7 3 9-3 6H13l-3-6z"/><circle cx="21" cy="13" r="7"/><path d="M7 42V30a14 14 0 0 1 28 0v12z"/><path d="M17 12h2M23 12h2" stroke="var(--bg)" stroke-width="2"/>'
+};
+// st = which side each passenger is on and where the boat is. sel = who is in the boat for the next trip. trips = the game so far, the form the server replays.
+const rv = { mode: 'classic', id: null, ...PUZZLES.classic, st: river.start(4), sel: [], trips: [], over: null, result: null, busy: false, error: '' };
+const listNames = who => { const s = who.map(i => NAME[rv.kinds[i]].toLowerCase()).join(' và '); return s[0].toUpperCase() + s.slice(1); };
+const BANK = ['bờ bên này', 'bờ bên kia'];
+
+$('rv-scene').addEventListener('click', e => {
+  const b = e.target.closest('.who');
+  if (!b || rv.busy || rv.over || !rv.id) return;
+  const i = +b.dataset.i;
+  rv.error = '';
+  if (rv.sel.includes(i)) rv.sel = rv.sel.filter(x => x !== i);
+  else if (rv.sel.length < rv.cap) rv.sel.push(i);
+  else { rv.error = `Thuyền chỉ chở được ${rv.cap} ${rv.mode === 'classic' ? 'thứ: người nông dân và thêm một thứ nữa' : 'người'}.`; say(rv.error); }
+  rvRender();
+  document.querySelector(`.who[data-i="${i}"]`)?.focus();
+});
+$('rv-go').addEventListener('click', rvGo);
+$('rv-reset').addEventListener('click', () => { if (rv.busy || rv.over) return; Object.assign(rv, { st: river.start(rv.kinds.length), sel: [], trips: [], error: '' }); rvRender(); });
+$('rv-retry').addEventListener('click', rvSubmit);
+$('rv-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== rv.mode) { rv.mode = m; rvNew(); } });
+$('rv-new').addEventListener('click', rvNew);
+
+async function rvNew() {
+  if (rv.busy) return;
+  if (!player.name) { openGate(); return; }
+  Object.assign(rv, { id: null, ...PUZZLES[rv.mode], sel: [], trips: [], over: null, result: null, busy: true, error: '' });
+  rv.st = river.start(rv.kinds.length);
+  rvRender();
+  try { const r = await startGame(rv.mode); Object.assign(rv, { id: r.id, kinds: r.kinds, cap: r.cap, best: r.best, st: river.start(r.kinds.length) }); }
+  catch (e) { rv.error = errText(e); say(rv.error); }
+  rv.busy = false; rvRender();
+}
+function rvGo() {
+  if (rv.busy || !rv.id || rv.over || !rv.sel.length) return;
+  const who = rv.sel.slice().sort((a, b) => a - b);
+  if (!river.can(rv.st, rv.kinds, rv.cap, who)) {
+    rv.error = rv.mode === 'classic' ? 'Chỉ người nông dân mới chèo được thuyền.' : 'Thuyền cần có người chèo.';
+    say(rv.error); rvRender(); return;
+  }
+  say(`${listNames(who)} chèo sang ${BANK[1 - rv.st.boat]}.`);
+  river.cross(rv.st, who); rv.trips.push(who); rv.sel = []; rv.error = '';
+  if (river.check(rv.st, rv.kinds)) rv.over = 'lose';
+  else if (river.done(rv.st)) rv.over = 'win';
+  if (rv.over) rvSubmit(); else rvRender();
+}
+// The finished game goes to the server, which replays the trips and saves the result.
+async function rvSubmit() {
+  if (rv.busy || !rv.over || rv.result) return;
+  rv.busy = true; rv.error = ''; rvRender();
+  try {
+    rv.result = await act('finish', { trips: rv.trips });
+    say(rv.result.outcome === 'win' ? `Tất cả đã qua sông trong ${rv.result.n} lượt.` : `${rv.result.trouble} ở ${BANK[rv.result.bank]}.`);
+    loadBoard();
+  }
+  catch (e) { rv.error = errText(e); say(rv.error); }
+  rv.busy = false; rvRender();
+}
+function token(i, enabled) {
+  const k = rv.kinds[i];
+  return `<button class="who ${k}" type="button" data-i="${i}" aria-pressed="${rv.sel.includes(i)}" aria-label="${NAME[k]}${rv.sel.includes(i) ? ', đang ở trên thuyền' : ''}"${enabled ? '' : ' disabled'}>`
+    + `<svg viewBox="0 0 42 42" aria-hidden="true">${ART[k]}</svg><span>${NAME[k]}</span></button>`;
+}
+function rvRender() {
+  const { st, kinds } = rv, playing = !!rv.id && !rv.over && !rv.busy, bad = rv.over === 'lose' && river.check(st, kinds);
+  [0, 1].forEach(side => {
+    const bank = $('rv-bank-' + side);
+    bank.classList.toggle('here', st.boat === side && !bad);
+    bank.classList.toggle('bad', !!bad && bad[1] === side);
+    bank.querySelector('.crowd').innerHTML = kinds.map((_, i) => st.far[i] !== (side === 1) || rv.sel.includes(i) ? '' : token(i, playing && st.boat === side)).join('');
+  });
+  $('rv-boat').classList.toggle('far', st.boat === 1);
+  $('rv-boat').querySelector('.seats').innerHTML = rv.sel.map(i => token(i, playing)).join('');
+  $('rv-cap').textContent = `Thuyền: ${rv.sel.length} / ${rv.cap}`;
+  const n = rv.trips.length;
+  $('rv-steplabel').textContent = `Đã chèo ${n} lượt`;
+  $('rv-pill').textContent = `Ít nhất ${rv.best} lượt`;
+  $('rv-go').disabled = !playing || !rv.sel.length;
+  $('rv-go').textContent = !rv.sel.length ? 'Chọn ai xuống thuyền' : st.boat ? '← Chèo về bờ bên này' : 'Chèo sang bờ bên kia →';
+  $('rv-reset').disabled = rv.busy || !!rv.over || !n;
+  $('rv-retry').hidden = !(rv.over && !rv.result && !rv.busy);
+  $('rv-warn').textContent = rv.error;
+  $('rv-task').innerHTML = rv.mode === 'classic'
+    ? 'Đưa người nông dân, sói, dê và bắp cải sang bờ bên kia. Bấm vào ai để cho xuống thuyền (bấm lần nữa để cho lên bờ), rồi chèo. Thuyền chở <b>người và thêm một thứ</b>. Không được để <b>sói với dê</b>, hay <b>dê với bắp cải</b>, ở lại một mình với nhau.'
+    : 'Đưa ba nhà sư và ba con quỷ sang bờ bên kia. Thuyền chở <b>tối đa hai</b>, ai cũng chèo được, nhưng phải có người chèo. Ở bất kỳ bờ nào, nếu <b>quỷ đông hơn sư</b> (tính cả người trên thuyền vừa cập bến) thì các sư sẽ bị bắt.';
+  $('rv-score').innerHTML = scoreLine();
+  $('rv-log').innerHTML = rv.trips.map((who, i) => `<li><span class="num">${i + 1}</span><div class="body"><div class="outc"><span class="sym">${i % 2 ? '←' : '→'}</span>${esc(listNames(who))}</div><p class="why">Chèo ${i % 2 ? 'về bờ bên này' : 'sang bờ bên kia'}</p></div></li>`).join('');
+  setSeg($('rv-mode'), 'm', rv.mode);
+  $('rv-modenote').textContent = rv.mode === 'classic'
+    ? 'Kinh điển: người nông dân, sói, dê và bắp cải. Ít nhất 7 lượt.'
+    : 'Khó: ba nhà sư và ba con quỷ, thuyền chở hai. Ít nhất 11 lượt.';
+  const v = $('rv-verdict'); v.hidden = !rv.result;
+  if (rv.result) {
+    const win = rv.result.outcome === 'win', perfect = win && rv.result.n === rv.result.best;
+    v.className = 'verdict ' + (win ? 'good' : 'bad');
+    v.innerHTML = win
+      ? `<p class="label">${perfect ? '✓ Tối ưu' : '✓ Đã qua sông'}</p><div class="big">Tất cả qua sông trong <b>${rv.result.n}</b> lượt.</div>`
+        + `<p>${perfect ? 'Đây là số lượt ít nhất có thể.' : `Số lượt ít nhất là ${rv.result.best}. Thử lại xem có rút ngắn được không.`}</p><p>Kết quả đã được lưu.</p>`
+      : `<p class="label">✗ Hỏng rồi</p><div class="big">${esc(rv.result.trouble)} ở ${BANK[rv.result.bank]}.</div><p>Vẫn có cách đưa tất cả qua sông an toàn. Đôi khi phải chở một thứ quay ngược lại.</p><p>Kết quả đã được lưu.</p>`;
+  }
+}
+
+rvRender();
+initPage({
+  game: 'river', title: 'Sói, dê và bắp cải', eyebrow: 'Alcuin xứ York, thế kỷ 8 · qua sông',
+  modes: { classic: 'Kinh điển', hard: 'Khó' }, starLabel: 'Tối ưu', starNote: 'với số lượt ít nhất', stepLabel: 'Số lượt',
+  onPlayer(changed) { if (changed || !rv.id) rvNew(); },
+  onBoard: rvRender
+});
+</script>
+</body>
+</html>
