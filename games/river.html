@@ -19,37 +19,93 @@
 <link rel="stylesheet" href="/app.css">
 <style>
 /* Only what this game needs; the shared look is in app.css. */
-/* near bank | river with the boat | far bank */
-.scene { display: grid; grid-template-columns: minmax(0, 1fr) minmax(112px, .7fr) minmax(0, 1fr); margin: 14px 0 12px; align-items: stretch; }
-.bank { min-height: 210px; padding: 10px 6px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); display: flex; flex-direction: column; gap: 10px; transition: background-color var(--t-base); }
+/* near bank | river | far bank. On a phone the far bank goes on top and the river runs across the screen, so the boat has room to travel. */
+.scene { --boat-w: 120px; --boat-h: 92px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 1.3fr) minmax(0, 1fr); margin: 14px 0 12px; }
+.bank { min-height: 196px; padding: 10px 6px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); box-shadow: var(--shadow-well); display: flex; flex-direction: column; gap: 10px; transition: background-color var(--t-base), border-color var(--t-base); }
 .bank.here { background: var(--brass-soft); border-color: transparent; }
+.bank.home { background: var(--ok-soft); border-color: transparent; }
 .bank.bad { background: var(--heavy-soft); border-color: var(--heavy); }
-.bank .where { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; }
-.bank .crowd { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-content: flex-start; flex: 1; }
-.water { position: relative; display: flex; flex-direction: column; justify-content: center; padding: 0 4px;
-  background: repeating-linear-gradient(170deg, transparent 0 14px, color-mix(in srgb, var(--light) 22%, transparent) 14px 16px), color-mix(in srgb, var(--light) 14%, transparent); }
-/* The boat sits at the edge of the bank it is moored at. */
-.boat { align-self: flex-start; width: 104px; min-height: 92px; display: flex; flex-direction: column; justify-content: flex-end; transition: transform var(--t-slow) var(--ease-out); }
-.boat.far { align-self: flex-end; }
-.boat .seats { display: flex; justify-content: center; gap: 2px; min-height: 66px; }
-.boat .hull { height: 18px; border-radius: 0 0 40px 40px / 0 0 18px 18px; background: var(--metal-dark); }
-.boat .cap { margin: 4px 0 0; text-align: center; font: 700 11px var(--f-mono); color: var(--muted); }
-/* a passenger: a little drawing with its name under it */
-.who { appearance: none; border: 0; background: none; padding: 0; margin: 0; font: inherit; cursor: pointer; width: 50px; height: 66px; border-radius: 8px; color: var(--metal-dark);
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: transform var(--t-base) var(--ease-spring); }
-.who svg { display: block; width: 42px; height: 42px; fill: currentColor; }
-.who span { font-size: 11.5px; font-weight: 600; color: var(--ink); line-height: 1.6; white-space: nowrap; }
-.who.farmer, .who.monk { color: var(--brass); }
-.who.wolf { color: var(--metal-dark); }
-.who.goat { color: var(--metal); }
-.who.cabbage { color: var(--ok); }
-.who.demon { color: var(--heavy); }
-.who:hover:not(:disabled) { transform: translateY(-2px); }
-.who:active:not(:disabled) { transform: scale(.94); }
+.where { margin: 0; display: flex; justify-content: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.where b { font-family: var(--f-mono); letter-spacing: 0; color: var(--ink); }
+.crowd { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-content: flex-start; flex: 1; }
+/* The river: small ripples drifting downstream. */
+.water { position: relative; overflow: hidden; background-color: color-mix(in srgb, var(--light) 15%, var(--surface));
+  background-image: radial-gradient(12px 2px at 50% 50%, color-mix(in srgb, var(--light) 38%, transparent) 50%, transparent), radial-gradient(12px 2px at 50% 50%, color-mix(in srgb, var(--light) 38%, transparent) 50%, transparent);
+  background-size: 64px 36px; background-position: 0 0, 32px 18px; }
+/* The boat is moored at the edge of one bank and rows across to the other (--sail is set from the script). */
+.boat { position: absolute; z-index: 1; width: var(--boat-w); height: var(--boat-h); left: 6px; top: 50%; translate: 0 -50%;
+  transition: left var(--sail) cubic-bezier(.45, .05, .55, .95), top var(--sail) cubic-bezier(.45, .05, .55, .95); }
+.boat.far { left: calc(100% - var(--boat-w) - 6px); }
+.ride { display: flex; flex-direction: column; height: 100%; }
+.seats { display: flex; justify-content: center; align-items: flex-end; gap: 4px; flex: 1; }
+.slot { width: 50px; height: 60px; margin-bottom: 2px; border: 1.5px dashed var(--edge); border-radius: 10px; opacity: .8; }
+.hull { display: block; width: 100%; height: 24px; flex: none; }
+.hull .wood { fill: var(--metal-dark); }
+.hull .rim { fill: var(--metal); }
+/* A passenger: a little drawing with its name under it. In the boat it sits in a seat. */
+.who { appearance: none; position: relative; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; width: 50px; height: 66px; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: transform var(--t-base) var(--ease-spring), opacity var(--t-base); }
+.who svg { display: block; width: 44px; height: 44px; overflow: visible; }
+.who span { font-size: 11.5px; font-weight: 600; color: var(--ink); line-height: 1.7; white-space: nowrap; }
+.who:hover:not(:disabled):not(.away) { transform: translateY(-3px); }
+.who:active:not(:disabled):not(.away) { transform: scale(.94); }
 .who:disabled { cursor: default; }
-.bank:not(.here) .who { opacity: .6; }
-.bank.bad .who { opacity: 1; }
-@media (max-width: 480px) { .scene { grid-template-columns: minmax(0, 1fr) 100px minmax(0, 1fr); } .boat { width: 94px; } .who { width: 44px; height: 62px; } .who svg { width: 38px; height: 38px; } .bank { padding-inline: 3px; } .bank .crowd { gap: 2px; } }
+/* On the bank without the boat: still pressable, so the page can say why nobody there can board. */
+.who.away { opacity: .5; cursor: not-allowed; }
+.who.eaten svg { opacity: .3; }
+.mark { position: absolute; top: 0; right: 0; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--heavy); color: var(--surface); font: normal 700 11px var(--f-body); }
+/* The drawings, also used small in the log. */
+.fig { fill: currentColor; }
+.fig .eye { fill: var(--surface); }
+.fig.farmer { color: var(--light); }
+.fig.farmer .hat { fill: var(--coin); stroke: var(--coin-edge); stroke-width: 1.2; stroke-linejoin: round; }
+.fig.wolf { color: var(--metal-dark); }
+.fig.goat, .fig.monk { color: var(--brass); }
+.fig.cabbage { color: var(--ok); }
+.fig .vein, .fig .sash { fill: none; stroke: var(--surface); stroke-width: 1.6; stroke-linecap: round; }
+.fig.demon { color: var(--heavy); }
+/* An arrow pointing the way the boat goes: across on a wide screen, up and down on a phone.
+   It is drawn, not typed, so it does not depend on the font having arrow glyphs. */
+.dir { --arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 8h11M9 4l4 4-4 4' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  display: inline-block; width: .95em; height: .95em; vertical-align: -.12em; background: currentColor; -webkit-mask: var(--arrow) center / contain no-repeat; mask: var(--arrow) center / contain no-repeat; }
+.dir-back { rotate: 180deg; }
+#rv-go .dir { margin-right: 8px; }
+#rv-go[aria-disabled="true"] { opacity: .45; cursor: not-allowed; box-shadow: none; }
+#rv-go[aria-disabled="true"]:active { transform: none; }
+.minis { display: inline-flex; gap: 2px; margin-right: 8px; vertical-align: -5px; }
+.minis svg { width: 22px; height: 22px; }
+.laws { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.laws li { position: relative; padding-left: 18px; font-size: 14.5px; }
+.laws li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 7px; height: 7px; border-radius: 50%; background: var(--brass); }
+
+@media (max-width: 560px) {
+  .scene { --boat-w: 112px; --boat-h: 84px; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 176px auto; }
+  #rv-bank-1 { order: 1; } .water { order: 2; } #rv-bank-0 { order: 3; }
+  .bank { min-height: 0; }
+  .crowd { flex: none; min-height: 60px; gap: 4px; }
+  .who { width: 46px; height: 60px; }
+  .who svg { width: 40px; height: 40px; }
+  .slot { width: 46px; height: 56px; }
+  .boat { left: 50%; top: calc(100% - var(--boat-h) - 8px); translate: -50% 0; }
+  .boat.far { left: 50%; top: 8px; }
+  .dir { rotate: -90deg; }
+  .dir-back { rotate: 90deg; }
+  #rv-go { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .water { animation: flow 8s linear infinite; }
+  .ride { animation: bob 2.8s ease-in-out infinite; }
+  .who.eater svg { animation: lunge 450ms ease-in-out 3; }
+  .bank.home .who svg { animation: hop 600ms var(--ease-spring) calc(var(--k) * 90ms) 2 both; }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 560px) {
+  .water { animation-name: flow-across; }
+}
+@keyframes flow { to { background-position: 0 72px, 32px 90px; } }
+@keyframes flow-across { to { background-position: 128px 0, 160px 18px; } }
+@keyframes bob { 50% { translate: 0 2px; } }
+@keyframes lunge { 50% { translate: 0 -4px; scale: 1.12; } }
+@keyframes hop { 40% { translate: 0 -10px; } 70% { translate: 0 0; } }
 </style>
 </head>
 <body>
@@ -75,21 +131,27 @@
           <span class="pill" id="rv-pill"></span>
         </div>
         <div class="scene" id="rv-scene">
-          <div class="bank" id="rv-bank-0"><p class="where">Bờ bên này</p><div class="crowd"></div></div>
-          <div class="water"><div class="boat" id="rv-boat"><div class="seats"></div><div class="hull"></div><p class="cap" id="rv-cap"></p></div></div>
-          <div class="bank" id="rv-bank-1"><p class="where">Bờ bên kia</p><div class="crowd"></div></div>
+          <div class="bank" id="rv-bank-0" role="group" aria-label="Bờ bên này"><p class="where">Bờ bên này</p><div class="crowd"></div></div>
+          <div class="water">
+            <div class="boat" id="rv-boat" role="group"><div class="ride"><div class="seats"></div>
+              <svg class="hull" viewBox="0 0 120 24" preserveAspectRatio="none" aria-hidden="true"><path class="wood" d="M0 3h120l-13 17q-3 4-8 4H21q-5 0-8-4z"/><rect class="rim" width="120" height="5" rx="2.5"/></svg>
+            </div></div>
+          </div>
+          <div class="bank" id="rv-bank-1" role="group" aria-label="Bờ bên kia"><p class="where">Bờ bên kia <b id="rv-tally"></b></p><div class="crowd"></div></div>
         </div>
         <div class="row">
-          <button class="btn primary big" id="rv-go"></button>
-          <button class="btn" id="rv-reset">Làm lại từ đầu</button>
-          <button class="btn" id="rv-retry" hidden>Gửi lại kết quả</button>
+          <button class="btn primary big" id="rv-go" type="button"></button>
+          <button class="btn" id="rv-undo" type="button"><span aria-hidden="true">↶ </span>Lùi một lượt</button>
+          <button class="btn" id="rv-reset" type="button">Làm lại từ đầu</button>
+          <button class="btn" id="rv-retry" type="button" hidden>Gửi lại kết quả</button>
         </div>
         <p class="warn" id="rv-warn"></p>
       </div>
       <aside class="side">
         <div class="block">
-          <p class="label">Nhiệm vụ</p>
-          <p class="note" id="rv-task"></p>
+          <p class="label">Luật</p>
+          <ul class="laws" id="rv-laws"></ul>
+          <p class="note">Bấm vào nhân vật đứng cùng bờ với thuyền để cho xuống thuyền, bấm lần nữa để cho lên bờ, rồi bấm nút chèo.</p>
           <p class="score" id="rv-score"></p>
         </div>
         <ol class="log" id="rv-log" data-empty="Các lượt chèo thuyền sẽ hiện ở đây."></ol>
@@ -113,32 +175,59 @@
 const { river } = RULES;
 const PUZZLES = { classic: { kinds: ['farmer', 'wolf', 'goat', 'cabbage'], cap: 2, best: 7 }, hard: { kinds: ['monk', 'monk', 'monk', 'demon', 'demon', 'demon'], cap: 2, best: 11 } };
 const NAME = { farmer: 'Người', wolf: 'Sói', goat: 'Dê', cabbage: 'Bắp cải', monk: 'Sư', demon: 'Quỷ' };
-const ART = {
-  farmer: '<circle cx="21" cy="12" r="6"/><path d="M9 8h24l-3-3H12z"/><path d="M8 42V30a13 13 0 0 1 26 0v12z"/>',
-  wolf: '<path d="M6 8l9 7h12l9-7-2 15 6 10-11 7H13L2 33l6-10z"/><circle cx="15" cy="23" r="2" fill="var(--bg)"/><circle cx="27" cy="23" r="2" fill="var(--bg)"/>',
-  goat: '<path d="M10 4q-6 6 1 14l2-4q-3-4 1-8zM32 4q6 6-1 14l-2-4q3-4-1-8z"/><path d="M11 14h20l-2 16-8 6-8-6z"/><path d="M18 35h6l-3 7z"/><circle cx="16" cy="21" r="2" fill="var(--bg)"/><circle cx="26" cy="21" r="2" fill="var(--bg)"/>',
-  cabbage: '<circle cx="21" cy="24" r="16"/><path d="M21 9v30M21 24q-8-4-12-12M21 24q8-4 12-12M21 31q-9-2-14-8M21 31q9-2 14-8" fill="none" stroke="var(--bg)" stroke-width="1.6" stroke-linecap="round"/>',
-  monk: '<circle cx="21" cy="11" r="7"/><path d="M6 42l4-16a11 11 0 0 1 22 0l4 16z"/><path d="M14 24l7 9 7-9" fill="none" stroke="var(--bg)" stroke-width="1.6"/>',
-  demon: '<path d="M13 2l2 7h12l2-7 3 9-3 6H13l-3-6z"/><circle cx="21" cy="13" r="7"/><path d="M7 42V30a14 14 0 0 1 28 0v12z"/><path d="M17 12h2M23 12h2" stroke="var(--bg)" stroke-width="2"/>'
+// Who hurts whom, to point both out when a game is lost.
+const EATER = { goat: 'wolf', cabbage: 'goat', monk: 'demon' };
+const LAWS = {
+  classic: ['Thuyền chở <b>người nông dân và thêm một thứ</b>.', 'Chỉ <b>người nông dân</b> chèo được thuyền.', 'Vắng người, <b>sói ăn dê</b> và <b>dê ăn bắp cải</b>.'],
+  hard: ['Thuyền chở <b>tối đa hai</b>, ai cũng chèo được, nhưng thuyền không tự đi khi trống.', 'Bờ nào có <b>quỷ đông hơn sư</b> thì các sư bị bắt. Ai trên thuyền vừa cập bến cũng được tính vào bờ đó.', 'Bờ không có sư thì bao nhiêu quỷ cũng không sao.']
 };
+// Drawn on a 44 × 44 grid; the colours come from the .fig rules.
+const ART = {
+  farmer: '<path d="M9 44v-8q0-9 13-9t13 9v8z"/><circle cx="22" cy="20" r="5.5"/><path class="hat" d="M3 15 22 3l19 12q-19 4-38 0z"/>',
+  wolf: '<path d="M6 3l10 10h12L38 3l1 16-4 9-9 13h-8L9 28l-4-9z"/><path class="eye" d="M12 20l6.5 2.2-6 1.8zM32 20l-6.5 2.2 6 1.8z"/>',
+  goat: '<path d="M15 13Q11 3 3 8q6 0 9 8zM29 13q4-10 12-5-6 0-9 8z"/><path d="M13 17 2 20l11 3zM31 17l11 3-11 3z"/><path d="M13 12h18l-2 17q-7 6-14 0z"/><path d="M19 32h6l-3 10z"/><path class="eye" d="M15 19.5h4v2h-4zM25 19.5h4v2h-4z"/>',
+  cabbage: '<path d="M4 25Q4 9 22 8q18 1 18 17 0 15-18 16Q4 40 4 25z"/><path class="vein" d="M22 11v28M22 25q-8-3-12-11M22 25q8-3 12-11M22 32q-9-1-14-7M22 32q9-1 14-7"/>',
+  monk: '<path d="M7 44l4-14q11-9 22 0l4 14z"/><circle cx="22" cy="14" r="7.5"/><path class="sash" d="M15 28l15 16"/>',
+  demon: '<path d="M12 3l3 8h14l3-8 3 10-4 6H13l-4-6z"/><circle cx="22" cy="15" r="7.5"/><path d="M8 44V33q0-9 14-9t14 9v11z"/><path class="eye" d="M17 13.5l3.5 1.5H17zM27 13.5 23.5 15H27z"/>'
+};
+const fig = kind => `<svg class="fig ${kind}" viewBox="0 0 44 44" aria-hidden="true">${ART[kind]}</svg>`;
+// How long the boat takes to cross; nothing can be pressed meanwhile.
+const SAIL_MS = 700;
+$('rv-scene').style.setProperty('--sail', SAIL_MS + 'ms');
+
 // st = which side each passenger is on and where the boat is. sel = who is in the boat for the next trip. trips = the game so far, the form the server replays.
-const rv = { mode: 'classic', id: null, ...PUZZLES.classic, st: river.start(4), sel: [], trips: [], over: null, result: null, busy: false, error: '' };
+const rv = { mode: 'classic', id: null, ...PUZZLES.classic, st: river.start(4), sel: [], trips: [], over: null, result: null, busy: false, sailing: false, error: '' };
 const listNames = who => { const s = who.map(i => NAME[rv.kinds[i]].toLowerCase()).join(' và '); return s[0].toUpperCase() + s.slice(1); };
 const BANK = ['bờ bên này', 'bờ bên kia'];
+const playing = () => !!rv.id && !rv.over && !rv.busy && !rv.sailing;
+const side = i => rv.st.far[i] ? 1 : 0;
+const fail = msg => { rv.error = msg; say(msg); rvRender(); };
 
 $('rv-scene').addEventListener('click', e => {
   const b = e.target.closest('.who');
-  if (!b || rv.busy || rv.over || !rv.id) return;
+  if (!b || !playing()) return;
   const i = +b.dataset.i;
   rv.error = '';
   if (rv.sel.includes(i)) rv.sel = rv.sel.filter(x => x !== i);
+  else if (side(i) !== rv.st.boat) rv.error = `Thuyền đang ở ${BANK[rv.st.boat]}. Chỉ ai đứng cùng bờ với thuyền mới xuống thuyền được.`;
   else if (rv.sel.length < rv.cap) rv.sel.push(i);
-  else { rv.error = `Thuyền chỉ chở được ${rv.cap} ${rv.mode === 'classic' ? 'thứ: người nông dân và thêm một thứ nữa' : 'người'}.`; say(rv.error); }
+  else rv.error = rv.mode === 'classic' ? 'Thuyền chỉ chở được người nông dân và thêm một thứ nữa.' : `Thuyền chỉ chở được ${rv.cap} người.`;
+  if (rv.error) say(rv.error);
   rvRender();
-  document.querySelector(`.who[data-i="${i}"]`)?.focus();
+  document.querySelector(`#rv-scene .who[data-i="${i}"]`)?.focus();
 });
-$('rv-go').addEventListener('click', rvGo);
-$('rv-reset').addEventListener('click', () => { if (rv.busy || rv.over) return; Object.assign(rv, { st: river.start(rv.kinds.length), sel: [], trips: [], error: '' }); rvRender(); });
+$('rv-go').addEventListener('click', () => {
+  if (rv.result || (!rv.id && !rv.busy)) rvNew();
+  else if (playing() && !rv.sel.length) fail('Bấm vào một nhân vật đứng cùng bờ với thuyền để cho xuống thuyền.');
+  else rvGo();
+});
+$('rv-undo').addEventListener('click', rvUndo);
+$('rv-reset').addEventListener('click', () => {
+  if (!playing() || !rv.trips.length) return;
+  Object.assign(rv, { st: river.start(rv.kinds.length), sel: [], trips: [], error: '' });
+  say('Mọi người đã về lại bờ bên này.');
+  rvRender();
+});
 $('rv-retry').addEventListener('click', rvSubmit);
 $('rv-mode').addEventListener('click', e => { const m = e.target.closest('button')?.dataset.m; if (m && m !== rv.mode) { rv.mode = m; rvNew(); } });
 $('rv-new').addEventListener('click', rvNew);
@@ -146,25 +235,41 @@ $('rv-new').addEventListener('click', rvNew);
 async function rvNew() {
   if (rv.busy) return;
   if (!player.name) { openGate(); return; }
-  Object.assign(rv, { id: null, ...PUZZLES[rv.mode], sel: [], trips: [], over: null, result: null, busy: true, error: '' });
+  Object.assign(rv, { id: null, ...PUZZLES[rv.mode], sel: [], trips: [], over: null, result: null, busy: true, sailing: false, error: '' });
   rv.st = river.start(rv.kinds.length);
   rvRender();
   try { const r = await startGame(rv.mode); Object.assign(rv, { id: r.id, kinds: r.kinds, cap: r.cap, best: r.best, st: river.start(r.kinds.length) }); }
   catch (e) { rv.error = errText(e); say(rv.error); }
   rv.busy = false; rvRender();
 }
-function rvGo() {
-  if (rv.busy || !rv.id || rv.over || !rv.sel.length) return;
+// Shows the boat crossing with whoever is in it. False when a new game was started meanwhile.
+async function sail() {
+  const id = rv.id;
+  rv.sailing = true; rvRender();
+  await wait(reduceMotion ? 0 : SAIL_MS);
+  if (rv.id !== id) return false;
+  rv.sailing = false;
+  return true;
+}
+async function rvGo() {
+  if (!playing() || !rv.sel.length) return;
   const who = rv.sel.slice().sort((a, b) => a - b);
-  if (!river.can(rv.st, rv.kinds, rv.cap, who)) {
-    rv.error = rv.mode === 'classic' ? 'Chỉ người nông dân mới chèo được thuyền.' : 'Thuyền cần có người chèo.';
-    say(rv.error); rvRender(); return;
-  }
-  say(`${listNames(who)} chèo sang ${BANK[1 - rv.st.boat]}.`);
-  river.cross(rv.st, who); rv.trips.push(who); rv.sel = []; rv.error = '';
+  if (!river.can(rv.st, rv.kinds, rv.cap, who)) return fail(rv.mode === 'classic' ? 'Chỉ người nông dân mới chèo được thuyền.' : 'Thuyền cần có người chèo.');
+  river.cross(rv.st, who); rv.trips.push(who); rv.error = '';
+  say(`${listNames(who)} chèo ${rv.st.boat ? 'sang bờ bên kia' : 'về bờ bên này'}.`);
+  if (!await sail()) return;
+  rv.sel = [];
   if (river.check(rv.st, rv.kinds)) rv.over = 'lose';
   else if (river.done(rv.st)) rv.over = 'win';
   if (rv.over) rvSubmit(); else rvRender();
+}
+// Takes back the last trip: the boat rows back with the same people still in it.
+async function rvUndo() {
+  if (!playing() || !rv.trips.length) return;
+  const who = rv.trips.pop();
+  river.cross(rv.st, who); rv.sel = who.slice(); rv.error = '';
+  say(`Lùi một lượt: ${listNames(who).toLowerCase()} quay lại ${BANK[rv.st.boat]}.`);
+  if (await sail()) rvRender();
 }
 // The finished game goes to the server, which replays the trips and saves the result.
 async function rvSubmit() {
@@ -178,35 +283,69 @@ async function rvSubmit() {
   catch (e) { rv.error = errText(e); say(rv.error); }
   rv.busy = false; rvRender();
 }
-function token(i, enabled) {
-  const k = rv.kinds[i];
-  return `<button class="who ${k}" type="button" data-i="${i}" aria-pressed="${rv.sel.includes(i)}" aria-label="${NAME[k]}${rv.sel.includes(i) ? ', đang ở trên thuyền' : ''}"${enabled ? '' : ' disabled'}>`
-    + `<svg viewBox="0 0 42 42" aria-hidden="true">${ART[k]}</svg><span>${NAME[k]}</span></button>`;
+
+function token(i, { inBoat = false, away = false, mark = '', k = 0 } = {}) {
+  // away: on the bank the boat is not at (or is rowing away from); faded until the game is over.
+  const kind = rv.kinds[i], on = playing(), faded = away && !rv.over;
+  const state = inBoat ? ', đang ở trên thuyền' : mark === 'eaten' ? (kind === 'monk' ? ', bị bắt' : ', bị ăn mất') : faded ? ', ở bờ không có thuyền' : '';
+  return `<button class="who ${kind}${faded ? ' away' : ''}${mark ? ' ' + mark : ''}" type="button" data-i="${i}" data-key="${i}${kind}" style="--k:${k}"`
+    + ` aria-pressed="${inBoat}" aria-label="${NAME[kind]}${state}"${on ? '' : ' disabled'}${faded && on ? ' aria-disabled="true"' : ''}>`
+    + `${fig(kind)}<span>${NAME[kind]}</span>${mark === 'eaten' ? '<i class="mark" aria-hidden="true">✗</i>' : ''}</button>`;
 }
+// Redraws the scene; passengers then glide from where they were to their new place.
 function rvRender() {
-  const { st, kinds } = rv, playing = !!rv.id && !rv.over && !rv.busy, bad = rv.over === 'lose' && river.check(st, kinds);
-  [0, 1].forEach(side => {
-    const bank = $('rv-bank-' + side);
-    bank.classList.toggle('here', st.boat === side && !bad);
-    bank.classList.toggle('bad', !!bad && bad[1] === side);
-    bank.querySelector('.crowd').innerHTML = kinds.map((_, i) => st.far[i] !== (side === 1) || rv.sel.includes(i) ? '' : token(i, playing && st.boat === side)).join('');
+  const before = new Map();
+  if (!reduceMotion) document.querySelectorAll('#rv-scene .who').forEach(b => before.set(b.dataset.key, b.getBoundingClientRect()));
+  rvDraw();
+  if (reduceMotion) return;
+  document.querySelectorAll('#rv-scene .who').forEach(b => {
+    const r0 = before.get(b.dataset.key);
+    if (!r0 || !b.animate) return;
+    const r1 = b.getBoundingClientRect(), dx = r0.left - r1.left, dy = r0.top - r1.top;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) b.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2, .8, .2, 1)' });
   });
-  $('rv-boat').classList.toggle('far', st.boat === 1);
-  $('rv-boat').querySelector('.seats').innerHTML = rv.sel.map(i => token(i, playing)).join('');
-  $('rv-cap').textContent = `Thuyền: ${rv.sel.length} / ${rv.cap}`;
-  const n = rv.trips.length;
+}
+function rvDraw() {
+  const { st, kinds, sel, cap } = rv, on = playing(), n = rv.trips.length;
+  const trouble = rv.over === 'lose' && river.check(st, kinds);
+  const mark = i => !trouble || side(i) !== trouble[1] ? '' : kinds[i] === trouble[2] ? 'eaten' : kinds[i] === EATER[trouble[2]] ? 'eater' : '';
+  [0, 1].forEach(s => {
+    const bank = $('rv-bank-' + s);
+    let k = 0;
+    bank.classList.toggle('here', st.boat === s && !rv.sailing && !rv.over);
+    bank.classList.toggle('home', rv.over === 'win' && s === 1);
+    bank.classList.toggle('bad', !!trouble && trouble[1] === s);
+    bank.querySelector('.crowd').innerHTML = kinds.map((_, i) => side(i) !== s || sel.includes(i) ? '' : token(i, { away: st.boat !== s, mark: mark(i), k: k++ })).join('');
+  });
+  const boat = $('rv-boat');
+  boat.classList.toggle('far', st.boat === 1);
+  boat.setAttribute('aria-label', rv.sailing ? 'Thuyền đang qua sông' : `Thuyền ở ${BANK[st.boat]}, đang chở ${sel.length} / ${cap}`);
+  boat.querySelector('.seats').innerHTML = sel.map(i => token(i, { inBoat: true })).join('') + '<span class="slot" aria-hidden="true"></span>'.repeat(Math.max(0, cap - sel.length));
+  $('rv-tally').textContent = `${kinds.filter((_, i) => st.far[i] && !(rv.sailing && sel.includes(i))).length}/${kinds.length}`;
   $('rv-steplabel').textContent = `Đã chèo ${n} lượt`;
   $('rv-pill').textContent = `Ít nhất ${rv.best} lượt`;
-  $('rv-go').disabled = !playing || !rv.sel.length;
-  $('rv-go').textContent = !rv.sel.length ? 'Chọn ai xuống thuyền' : st.boat ? '← Chèo về bờ bên này' : 'Chèo sang bờ bên kia →';
-  $('rv-reset').disabled = rv.busy || !!rv.over || !n;
+  // The main button always says what it would do, or what is still missing.
+  const go = $('rv-go'), who = sel.slice().sort((a, b) => a - b);
+  let label, ready = false;
+  if (rv.result) { label = 'Chơi ván mới'; ready = true; }
+  else if (rv.over) label = rv.busy ? 'Đang lưu kết quả…' : 'Chưa lưu được kết quả';
+  else if (rv.busy) label = 'Đang chuẩn bị ván…';
+  else if (!rv.id) { label = 'Thử lại'; ready = true; }
+  else if (rv.sailing) label = 'Đang chèo…';
+  else if (!sel.length) label = 'Chọn ai xuống thuyền';
+  else if (!river.can(st, kinds, cap, who)) label = rv.mode === 'classic' ? 'Người nông dân phải lên thuyền' : 'Cần người chèo thuyền';
+  else { label = `<span class="dir${st.boat ? ' dir-back' : ''}" aria-hidden="true"></span>${st.boat ? 'Chèo về bờ bên này' : 'Chèo sang bờ bên kia'}`; ready = true; }
+  go.innerHTML = label;
+  go.setAttribute('aria-disabled', String(!ready));
+  $('rv-undo').hidden = $('rv-reset').hidden = !!rv.over;
+  $('rv-undo').disabled = !on || !n;
+  $('rv-reset').disabled = !on || !n;
   $('rv-retry').hidden = !(rv.over && !rv.result && !rv.busy);
   $('rv-warn').textContent = rv.error;
-  $('rv-task').innerHTML = rv.mode === 'classic'
-    ? 'Đưa người nông dân, sói, dê và bắp cải sang bờ bên kia. Bấm vào ai để cho xuống thuyền (bấm lần nữa để cho lên bờ), rồi chèo. Thuyền chở <b>người và thêm một thứ</b>. Không được để <b>sói với dê</b>, hay <b>dê với bắp cải</b>, ở lại một mình với nhau.'
-    : 'Đưa ba nhà sư và ba con quỷ sang bờ bên kia. Thuyền chở <b>tối đa hai</b>, ai cũng chèo được, nhưng phải có người chèo. Ở bất kỳ bờ nào, nếu <b>quỷ đông hơn sư</b> (tính cả người trên thuyền vừa cập bến) thì các sư sẽ bị bắt.';
+  $('rv-laws').innerHTML = LAWS[rv.mode].map(l => `<li>${l}</li>`).join('');
   $('rv-score').innerHTML = scoreLine();
-  $('rv-log').innerHTML = rv.trips.map((who, i) => `<li><span class="num">${i + 1}</span><div class="body"><div class="outc"><span class="sym">${i % 2 ? '←' : '→'}</span>${esc(listNames(who))}</div><p class="why">Chèo ${i % 2 ? 'về bờ bên này' : 'sang bờ bên kia'}</p></div></li>`).join('');
+  $('rv-log').innerHTML = rv.trips.map((t, i) => `<li><span class="num">${i + 1}</span><div class="body"><div class="outc"><span class="sym dir${i % 2 ? ' dir-back' : ''}" aria-hidden="true"></span>`
+    + `<span class="minis">${t.map(j => fig(kinds[j])).join('')}</span>${esc(listNames(t))}</div><p class="why">Chèo ${i % 2 ? 'về bờ bên này' : 'sang bờ bên kia'}</p></div></li>`).join('');
   setSeg($('rv-mode'), 'm', rv.mode);
   $('rv-modenote').textContent = rv.mode === 'classic'
     ? 'Kinh điển: người nông dân, sói, dê và bắp cải. Ít nhất 7 lượt.'
@@ -227,7 +366,8 @@ initPage({
   game: 'river', title: 'Sói, dê và bắp cải', eyebrow: 'Alcuin xứ York, thế kỷ 8 · qua sông',
   modes: { classic: 'Kinh điển', hard: 'Khó' }, starLabel: 'Tối ưu', starNote: 'với số lượt ít nhất', stepLabel: 'Số lượt',
   onPlayer(changed) { if (changed || !rv.id) rvNew(); },
-  onBoard: rvRender
+  // Only the record line depends on the leaderboard; a full redraw would restart the scene's animations.
+  onBoard() { $('rv-score').innerHTML = scoreLine(); }
 });
 </script>
 </body>
